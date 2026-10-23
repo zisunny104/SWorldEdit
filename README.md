@@ -58,3 +58,11 @@ Blocks can be specified in multiple formats:
 - **Block Names**: `stone`, `oak_planks`  
 - **Full Names**: `minecraft:stone`  
 
+
+### Stack
+`//stack <count> [north|south|east|west|up|down]` repeats the selection by its full dimensions.
+Omit direction to use the dominant axis of your look direction. Air is included.
+The selection and clipboard stay unchanged; `//undo` restores the destination in one step.
+World access is split over server ticks. Configure `stack.max-blocks` and
+`stack.blocks-per-tick` in `config.yml`. The initial implementation copies the primary
+block layer only, without block entity NBT, entities, or additional layers.

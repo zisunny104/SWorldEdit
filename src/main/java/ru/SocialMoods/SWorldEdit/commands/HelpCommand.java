@@ -57,7 +57,7 @@ public class HelpCommand extends WECommand {
             case 3: {
                 help.append("WorldEdit Help - Page 3/3:\n");
                 help.append("  //copy - Copy selected area to clipboard\n");
-                help.append("  //paste - Paste from clipboard\n");
+                help.append("  //paste - Paste from clipboard\n  //stack <count> [direction] - Repeat selected area\n");
                 help.append("  //rotate <axis> <degree> - Rotate clipboard content\n");
                 help.append("  //wand - Get selection wand axe\n");
                 help.append("  //desel - Clear current selection");
