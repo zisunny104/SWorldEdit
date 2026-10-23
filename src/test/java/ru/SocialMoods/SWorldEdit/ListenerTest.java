@@ -123,4 +123,56 @@ class ListenerTest {
         assertFalse(denied.isCancelled());
         verifyNoInteractions(data);
     }
+
+    private void input(cn.nukkit.network.protocol.types.PlayerActionType action, int x) {
+        var inventory = mock(cn.nukkit.inventory.PlayerInventory.class);
+        when(player.getInventory()).thenReturn(inventory);
+        when(inventory.getItemInHand()).thenReturn(wand);
+        var packet = mock(cn.nukkit.network.protocol.PlayerAuthInputPacket.class);
+        var data = new cn.nukkit.network.protocol.types.PlayerBlockActionData(action,
+                new cn.nukkit.math.BlockVector3(x, 70, 4), 1);
+        when(packet.getBlockActionData()).thenReturn(java.util.Map.of(action, data));
+        listener.onPacket(new cn.nukkit.event.server.DataPacketReceiveEvent(player, packet));
+    }
+
+    @Test void authInputStartCanOnlySelectOnceAndContinueCannotSelectBehindIt() {
+        input(cn.nukkit.network.protocol.types.PlayerActionType.START_DESTROY_BLOCK, 2);
+        listener.onInteract(click(PlayerInteractEvent.Action.LEFT_CLICK_BLOCK));
+        var original = selection.getPosTwo();
+        listener.onInteract(click(PlayerInteractEvent.Action.LEFT_CLICK_BLOCK));
+        assertSame(original, selection.getPosTwo());
+        when(block.getFloorX()).thenReturn(3);
+        when(block.getLocation()).thenReturn(new Location(3, 70, 4, level));
+        input(cn.nukkit.network.protocol.types.PlayerActionType.CONTINUE_DESTROY_BLOCK, 3);
+        PlayerInteractEvent continued = click(PlayerInteractEvent.Action.LEFT_CLICK_BLOCK);
+        listener.onInteract(continued);
+        assertTrue(continued.isCancelled());
+        assertSame(original, selection.getPosTwo());
+        verify(player, times(1)).sendMessage(anyString());
+        // A separate explicit start is allowed immediately, without a time-based cooldown.
+        input(cn.nukkit.network.protocol.types.PlayerActionType.START_DESTROY_BLOCK, 3);
+        listener.onInteract(click(PlayerInteractEvent.Action.LEFT_CLICK_BLOCK));
+        assertEquals(3, selection.getPosTwo().getFloorX());
+        verify(player, times(2)).sendMessage(anyString());
+    }
+
+    @Test void repeatedSamePointDoesNotSpamMessagesOnEitherButton() {
+        listener.onInteract(click(PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK));
+        var first = selection.getPosOne();
+        listener.onInteract(click(PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK));
+        assertSame(first, selection.getPosOne());
+        listener.onInteract(click(PlayerInteractEvent.Action.LEFT_CLICK_BLOCK));
+        var second = selection.getPosTwo();
+        listener.onInteract(click(PlayerInteractEvent.Action.LEFT_CLICK_BLOCK));
+        assertSame(second, selection.getPosTwo());
+        verify(player, times(2)).sendMessage(anyString());
+    }
+
+    @Test void predictedDestructionCannotSelectEvenWhenTargetChanges() {
+        input(cn.nukkit.network.protocol.types.PlayerActionType.PREDICT_DESTROY_BLOCK, 2);
+        listener.onInteract(click(PlayerInteractEvent.Action.LEFT_CLICK_BLOCK));
+        assertNull(selection.getPosTwo());
+        verify(player, never()).sendMessage(anyString());
+        verify(level).sendBlocks(eq(player), any(Block[].class), eq(UpdateBlockPacket.FLAG_ALL_PRIORITY));
+    }
 }
