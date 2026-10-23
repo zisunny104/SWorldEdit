@@ -25,8 +25,8 @@ public class SchematicRepositoryImpl implements SchematicRepository {
                 .putShort("Width", schematic.getWidth())
                 .putShort("Height", schematic.getHeight())
                 .putShort("Length", schematic.getLength())
-                .putByteArray("Blocks", schematic.getBlocks())
-                .putByteArray("Data", schematic.getData());
+                .putIntArray("BlockIds", schematic.getBlocks())
+                .putIntArray("BlockData", schematic.getData());
 
         File file = new File(baseDir, name + ".schem");
         try (FileOutputStream fos = new FileOutputStream(file);
@@ -35,19 +35,35 @@ public class SchematicRepositoryImpl implements SchematicRepository {
         }
     }
 
+    private static int[] readValues(CompoundTag tag, String modern, String legacy) {
+        if (tag.contains(modern)) return tag.getIntArray(modern);
+        byte[] bytes = tag.getByteArray(legacy);
+        int[] values = new int[bytes.length];
+        for (int i = 0; i < bytes.length; i++) values[i] = bytes[i] & 0xff;
+        return values;
+    }
+
     @Override
     public Schematic load(String name) throws IOException {
         File file = new File(baseDir, name + ".schem");
         try (FileInputStream fis = new FileInputStream(file);
              GZIPInputStream gzis = new GZIPInputStream(fis)) {
             CompoundTag tag = NBTIO.read(gzis);
+            if (tag.contains("BlockIds") != tag.contains("BlockData")) {
+                throw new IOException("Incomplete schematic block arrays");
+            }
+            try {
             return new Schematic(
                     (short) tag.getShort("Width"),
                     (short) tag.getShort("Height"),
                     (short) tag.getShort("Length"),
-                    tag.getByteArray("Blocks"),
-                    tag.getByteArray("Data")
+                    readValues(tag, "BlockIds", "Blocks"),
+                    readValues(tag, "BlockData", "Data")
             );
+            } catch (IllegalArgumentException | ArithmeticException e) {
+                throw new IOException("Invalid schematic", e);
+            }
         }
     }
 }
+
