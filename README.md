@@ -42,7 +42,7 @@ SWorldEdit is a powerful world editing plugin for Nukkit servers that provides e
 - `//schem save <name>` - Save the current selection as a schematic  
 - `//schem paste <name>` - Load a schematic at player's position or at specified coordinates  
 
-Schematics are stored in **compressed NBT format** for maximum efficiency. This allows saving large structures in a compact way and reusing them easily.
+Schematics use SWorldEdit-specific compressed NBT (not Sponge/FAWE `.schem`). Block IDs and metadata are stored as integer arrays, preserving IDs above 255. Older SWorldEdit byte-array files remain readable; previously truncated IDs cannot be recovered and require saving the original structure again. IDs remain core-specific: use a compatible core when loading. Unsupported ID/metadata pairs are rejected before placement. This format stores the primary block layer only; block entity NBT and additional layers are not included.
 
 ### Utility Commands
 
@@ -57,3 +57,4 @@ Blocks can be specified in multiple formats:
 - **Numeric ID**: `1`, `5:2`  
 - **Block Names**: `stone`, `oak_planks`  
 - **Full Names**: `minecraft:stone`  
+

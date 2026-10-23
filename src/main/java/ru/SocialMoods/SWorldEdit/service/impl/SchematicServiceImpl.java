@@ -32,12 +32,12 @@ public class SchematicServiceImpl implements SchematicService {
             int maxY = Math.max(p1.getFloorY(), p2.getFloorY());
             int maxZ = Math.max(p1.getFloorZ(), p2.getFloorZ());
 
-            short width = (short) (maxX - minX + 1);
-            short height = (short) (maxY - minY + 1);
-            short length = (short) (maxZ - minZ + 1);
+            int width = Math.addExact(Math.subtractExact(maxX, minX), 1);
+            int height = Math.addExact(Math.subtractExact(maxY, minY), 1);
+            int length = Math.addExact(Math.subtractExact(maxZ, minZ), 1);
 
-            byte[] blocks = new byte[width * height * length];
-            byte[] data = new byte[blocks.length];
+            int[] blocks = new int[Schematic.volume(width, height, length)];
+            int[] data = new int[blocks.length];
 
             int i = 0;
             for (int y = minY; y <= maxY; y++) {
@@ -45,15 +45,15 @@ public class SchematicServiceImpl implements SchematicService {
                     for (int x = minX; x <= maxX; x++) {
                         int id = level.getBlockIdAt(x, y, z);
                         int dmg = level.getBlockDataAt(x, y, z);
-                        blocks[i] = (byte) id;
-                        data[i] = (byte) dmg;
+                        blocks[i] = id;
+                        data[i] = dmg;
                         i++;
                     }
                 }
             }
 
             try {
-                repository.save(new Schematic(width, height, length, blocks, data), name);
+                repository.save(new Schematic((short) width, (short) height, (short) length, blocks, data), name);
             } catch (Exception e) {
                 throw new RuntimeException("Ошибка сохранения схематики", e);
             }
@@ -65,6 +65,15 @@ public class SchematicServiceImpl implements SchematicService {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Schematic schematic = repository.load(name);
+                for (int index = 0; index < schematic.getBlocks().length; index++) {
+                    int id = schematic.getBlocks()[index];
+                    int meta = schematic.getData()[index];
+                    Block block = Block.get(id, meta);
+                    if (block.getId() != id || block.getDamage() != meta ||
+                            block.getClass().getSimpleName().equals("BlockUnknown")) {
+                        throw new IllegalArgumentException("Core does not support schematic block " + id + ":" + meta);
+                    }
+                }
                 Level level = center.level;
                 BlocksArray undo = new BlocksArray();
                 int placed = 0;
@@ -73,8 +82,8 @@ public class SchematicServiceImpl implements SchematicService {
                 for (int y = 0; y < schematic.getHeight(); y++) {
                     for (int z = 0; z < schematic.getLength(); z++) {
                         for (int x = 0; x < schematic.getWidth(); x++) {
-                            int id = schematic.getBlocks()[i] & 0xFF;
-                            int dmg = schematic.getData()[i] & 0xFF;
+                            int id = schematic.getBlocks()[i];
+                            int dmg = schematic.getData()[i];
                             if (id != 0) {
                                 Block block = Block.get(id, dmg);
                                 int bx = center.getFloorX() + x;
@@ -96,3 +105,4 @@ public class SchematicServiceImpl implements SchematicService {
         });
     }
 }
+
