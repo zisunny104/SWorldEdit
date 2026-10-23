@@ -8,6 +8,14 @@ import cn.nukkit.blockentity.BlockEntitySpawnable;
 import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.EventPriority;
 import cn.nukkit.event.block.BlockBreakEvent;
+import cn.nukkit.event.server.DataPacketReceiveEvent;
+import cn.nukkit.network.protocol.PlayerAuthInputPacket;
+import cn.nukkit.network.protocol.PlayerActionPacket;
+import cn.nukkit.network.protocol.types.PlayerActionType;
+import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.WeakHashMap;
 import cn.nukkit.event.player.PlayerInteractEvent;
 import cn.nukkit.item.Item;
 import cn.nukkit.network.protocol.UpdateBlockPacket;
@@ -20,6 +28,51 @@ import java.util.function.Function;
 public class Listener implements cn.nukkit.event.Listener {
     private static final String WAND_NAME = "WorldEdit Wand Axe";
     private final Function<cn.nukkit.Player, PlayerData> playerData;
+    private record Point(int x, int y, int z) { }
+    private final Map<cn.nukkit.Player, Set<Point>> pendingStarts = new WeakHashMap<>();
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPacket(DataPacketReceiveEvent event) {
+        boolean auth = event.getPacket() instanceof PlayerAuthInputPacket;
+        boolean legacy = event.getPacket() instanceof PlayerActionPacket;
+        if (!auth && !legacy) return;
+        cn.nukkit.Player player = event.getPlayer();
+        var inventory = player.getInventory();
+        if (inventory == null || !player.hasPermission("we.command") || !isWandItem(inventory.getItemInHand())) {
+            pendingStarts.remove(player);
+            return;
+        }
+        Set<Point> starts = new HashSet<>();
+        if (auth) {
+            PlayerAuthInputPacket packet = (PlayerAuthInputPacket) event.getPacket();
+            for (var action : packet.getBlockActionData().values()) {
+                if (action.getAction() == PlayerActionType.START_DESTROY_BLOCK) {
+                    var position = action.getPosition();
+                    starts.add(new Point(position.x, position.y, position.z));
+                }
+            }
+        } else {
+            PlayerActionPacket packet = (PlayerActionPacket) event.getPacket();
+            if (packet.action == PlayerActionPacket.ACTION_START_BREAK) {
+                starts.add(new Point(packet.x, packet.y, packet.z));
+            }
+        }
+        // The core can emit multiple interactions for one input and for held-button continues.
+        // Permit each explicit start once; continued/predicted destruction cannot change selection.
+        pendingStarts.put(player, starts);
+    }
+
+    private boolean acceptStart(cn.nukkit.Player player, Block block) {
+        Set<Point> starts = pendingStarts.get(player);
+        // Older cores/plugins may emit interactions without either observed input packet.
+        return starts == null || starts.remove(new Point(block.getFloorX(), block.getFloorY(), block.getFloorZ()));
+    }
+
+    private static boolean samePosition(cn.nukkit.level.Position position, Block block) {
+        return position != null && position.level == block.getLevel() &&
+                position.getFloorX() == block.getFloorX() && position.getFloorY() == block.getFloorY() &&
+                position.getFloorZ() == block.getFloorZ();
+    }
 
     public Listener() {
         this(player -> SWorldEdit.get().getWEPlayer(player));
@@ -63,6 +116,9 @@ public class Listener implements cn.nukkit.event.Listener {
                     ((BlockEntitySpawnable) entity).spawnTo(player);
                 }
             }
+            if (event.getAction() == PlayerInteractEvent.Action.LEFT_CLICK_BLOCK && !acceptStart(player, block)) {
+                return;
+            }
             PlayerData data = playerData.apply(player);
             if (data == null || data.getSelection() == null) {
                 return;
@@ -70,10 +126,12 @@ public class Listener implements cn.nukkit.event.Listener {
 
             switch (event.getAction()) {
                 case LEFT_CLICK_BLOCK:
+                    if (samePosition(data.getSelection().getPosTwo(), block)) return;
                     data.getSelection().setPosTwo(block.getLocation().clone());
                     player.sendMessage(Messages.text("text.selected.second.position.at", block.getFloorX(), block.getFloorY(), block.getFloorZ()));
                     break;
                 case RIGHT_CLICK_BLOCK:
+                    if (samePosition(data.getSelection().getPosOne(), block)) return;
                     data.getSelection().setPosOne(block.getLocation().clone());
                     player.sendMessage(Messages.text("text.selected.first.position.at", block.getFloorX(), block.getFloorY(), block.getFloorZ()));
                     break;
@@ -89,3 +147,5 @@ public class Listener implements cn.nukkit.event.Listener {
         return customName != null && customName.equals(WAND_NAME);
     }
 }
+
+
