@@ -16,7 +16,7 @@ import static org.mockito.Mockito.*;
 class ClipboardOperationTest {
     private final Level level = mock(Level.class);
     private final Map<String, Block> world = new HashMap<>();
-    private final ArrayDeque<Runnable> queue = new ArrayDeque<>();
+    private final java.util.concurrent.LinkedBlockingQueue<Runnable> queue = new java.util.concurrent.LinkedBlockingQueue<>();
     private final PlayerData player = new PlayerData(mock(Player.class));
     private String key(Vector3 v) { return v.getFloorX()+","+v.getFloorY()+","+v.getFloorZ(); }
     private Block block(int id, double x, double y, double z) {
@@ -42,6 +42,14 @@ class ClipboardOperationTest {
             b.setComponents(v.x,v.y,v.z); b.level=level;
             world.put(key(v),b); return true;
         });
+    }
+    private void finishUntil(java.util.concurrent.CompletableFuture<?> future) throws Exception {
+        long deadline=System.nanoTime()+java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
+        while(!future.isDone()) {
+            assertTrue(System.nanoTime()<deadline,"Asynchronous operation did not complete");
+            Runnable task=queue.poll(20,java.util.concurrent.TimeUnit.MILLISECONDS);
+            if(task!=null) task.run();
+        }
     }
     private void finish() { int ticks=0; while (!queue.isEmpty()) { assertTrue(ticks++<1000); queue.remove().run(); } }
     @Test void copiesAirAndCanPasteTwiceWithoutChangingClipboardThenUndo() {
@@ -132,7 +140,7 @@ class ClipboardOperationTest {
         boolean unpair();
     }
 
-    @Test void doubleChestsSurvivePasteUndoPartialOverwriteAndSeparateStackCopies() {
+    @Test void doubleChestsSurvivePasteUndoPartialOverwriteAndSeparateStackCopies(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) throws Exception {
         var tiles=new HashMap<String,cn.nukkit.blockentity.BlockEntity>();
         var links=new HashMap<cn.nukkit.blockentity.BlockEntity,cn.nukkit.blockentity.BlockEntity>();
         java.util.function.Function<cn.nukkit.nbt.tag.CompoundTag,cn.nukkit.blockentity.BlockEntitySpawnable> tile=tag -> {
@@ -175,6 +183,24 @@ class ClipboardOperationTest {
                     new Vector3(0,70,0),copy,100,1,queue::add);finish();assertEquals(2,captured.join());
             var pasted=ClipboardOperation.paste(player,new Position(10,70,0,level),copy,false,100,1,queue::add);
             finish();assertEquals(2,pasted.join());assertSame(tiles.get("11,70,0"),links.get(tiles.get("10,70,0")));
+            // Disk save/load must use the same NBT, pairing and undo pipeline.
+            player.getSelection().setPosOne(new Position(0,70,0,level));
+            player.getSelection().setPosTwo(new Position(1,70,0,level));
+            var repository=new ru.SocialMoods.SWorldEdit.repository.impl.SchematicRepositoryImpl(dir.toFile());
+            var service=new ru.SocialMoods.SWorldEdit.service.impl.SchematicServiceImpl(repository,100,1,queue::add);
+            var saved=service.save(player,"paired");
+            finishUntil(saved); saved.join();
+            assertEquals(2,repository.load("paired").getBlockEntities().size());
+            try(var registry=mockStatic(Block.class)) {
+                registry.when(()->Block.get(54,0)).thenAnswer(call->block(54,0,0,0));
+                var loaded=service.load(player,new Position(30,70,0,level),"paired");
+                finishUntil(loaded); assertEquals(2,loaded.join());
+                assertSame(tiles.get("31,70,0"),links.get(tiles.get("30,70,0")));
+                assertEquals(12,tiles.get("30,70,0").namedTag.getList("Items",cn.nukkit.nbt.tag.CompoundTag.class).get(0).getByte("Count"));
+            }
+
+            var diskUndo=ClipboardOperation.undo(player,1,1,queue::add);finish();assertEquals(2,diskUndo.join());
+            assertNull(tiles.get("30,70,0"));
             var undone=ClipboardOperation.undo(player,0,1,queue::add);finish();assertEquals(2,undone.join());
             assertSame(tiles.get("11,70,0"),links.get(tiles.get("10,70,0")));
             assertEquals(3,tiles.get("10,70,0").namedTag.getList("Items",cn.nukkit.nbt.tag.CompoundTag.class).get(0).getByte("Count"));
