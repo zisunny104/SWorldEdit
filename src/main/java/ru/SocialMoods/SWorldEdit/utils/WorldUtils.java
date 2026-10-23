@@ -101,73 +101,23 @@ public class WorldUtils {
     }
 
     public static CompletableFuture<Integer> copyAsync(Position pos1, Position pos2, Vector3 center, BlocksArray copy) {
-        return CompletableFuture.supplyAsync(() -> {
-            int minX = Math.min(pos1.getFloorX(), pos2.getFloorX());
-            int minY = Math.min(pos1.getFloorY(), pos2.getFloorY());
-            int minZ = Math.min(pos1.getFloorZ(), pos2.getFloorZ());
-            int maxX = Math.max(pos1.getFloorX(), pos2.getFloorX());
-            int maxY = Math.max(pos1.getFloorY(), pos2.getFloorY());
-            int maxZ = Math.max(pos1.getFloorZ(), pos2.getFloorZ());
-
-            Level level = pos1.level;
-            AtomicInteger blocks = new AtomicInteger(0);
-
-            BlockOperationTask task = new BlockOperationTask(() -> {
-                for (int x = minX; x <= maxX; x++) {
-                    for (int y = minY; y <= maxY; y++) {
-                        for (int z = minZ; z <= maxZ; z++) {
-                            Block block = BlockSnapshots.relative(level, x, y, z, center);
-                            if (block.getId() == 0) continue;
-                            copy.blocks.add(block);
-                            blocks.incrementAndGet();
-                        }
-                    }
-                }
-            });
-
-            level.getServer().getScheduler().scheduleAsyncTask(SWorldEdit.get(), task);
-            try {
-                task.waitForCompletion();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException("Operation interrupted", e);
-            }
-
-            return blocks.get();
-        }, executor);
+        SWorldEdit plugin = SWorldEdit.get();
+        return ClipboardOperation.copy(pos1, pos2, center, copy,
+                plugin.getConfig().getInt("clipboard.max-blocks", 100000),
+                plugin.getConfig().getInt("clipboard.blocks-per-tick", 512),
+                task -> plugin.getServer().getScheduler().scheduleDelayedTask(plugin, task, 1));
     }
 
     public static CompletableFuture<Integer> pasteAsync(PlayerData dat, Position center, BlocksArray copy) {
-        return CompletableFuture.supplyAsync(() -> {
-            Level level = center.getLevel();
-            AtomicInteger blocks = new AtomicInteger(0);
-            BlocksArray undo = new BlocksArray();
+        return pasteAsync(dat, center, copy, false);
+    }
 
-            BlockOperationTask task = new BlockOperationTask(() -> {
-                Vector3 v = new Vector3();
-                for (Block b : copy.blocks) {
-                    v.setComponents(
-                            center.getFloorX() + b.x,
-                            center.getFloorY() + b.y,
-                            center.getFloorZ() + b.z
-                    );
-                    undo.blocks.add(level.getBlock(v));
-                    BlockSnapshots.place(level, v, b, false);
-                    blocks.incrementAndGet();
-                }
-            });
-
-            level.getServer().getScheduler().scheduleAsyncTask(SWorldEdit.get(), task);
-            try {
-                task.waitForCompletion();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException("Operation interrupted", e);
-            }
-
-            dat.addUndoBlocks(undo);
-            return blocks.get();
-        }, executor);
+    public static CompletableFuture<Integer> pasteAsync(PlayerData dat, Position center, BlocksArray copy, boolean skipAir) {
+        SWorldEdit plugin = SWorldEdit.get();
+        return ClipboardOperation.paste(dat, center, copy, skipAir,
+                plugin.getConfig().getInt("clipboard.max-blocks", 100000),
+                plugin.getConfig().getInt("clipboard.blocks-per-tick", 512),
+                task -> plugin.getServer().getScheduler().scheduleDelayedTask(plugin, task, 1));
     }
 
     public static CompletableFuture<Integer> rotateYAsync(PlayerData dat, Position center, Selection sel, int degrees) {
@@ -420,40 +370,8 @@ public class WorldUtils {
     }
 
     public static CompletableFuture<Integer> undoAsync(PlayerData dat, int step) {
-        return CompletableFuture.supplyAsync(() -> {
-            AtomicInteger blocks = new AtomicInteger(0);
-
-            if (dat.getUndoSteps().isEmpty() || step >= dat.getUndoSteps().size()) {
-                return 0;
-            }
-
-            BlocksArray redo = dat.getUndoSteps().get(step);
-            if (redo.blocks.isEmpty()) {
-                dat.getUndoSteps().remove(step);
-                return 0;
-            }
-
-            Level level = redo.blocks.get(0).level;
-
-            BlockOperationTask task = new BlockOperationTask(() -> {
-                Vector3 v = new Vector3();
-                for (Block b : redo.blocks) {
-                    v.setComponents(b.x, b.y, b.z);
-                    BlockSnapshots.place(b.level, v, b, true);
-                    blocks.incrementAndGet();
-                }
-            });
-
-            level.getServer().getScheduler().scheduleAsyncTask(SWorldEdit.get(), task);
-            try {
-                task.waitForCompletion();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException("Operation interrupted", e);
-            }
-
-            dat.getUndoSteps().remove(step);
-            return blocks.get();
-        }, executor);
+        SWorldEdit plugin = SWorldEdit.get();
+        return ClipboardOperation.undo(dat, step, plugin.getConfig().getInt("clipboard.blocks-per-tick", 512),
+                task -> plugin.getServer().getScheduler().scheduleDelayedTask(plugin, task, 1));
     }
 }

@@ -11,6 +11,10 @@ import ru.SocialMoods.SWorldEdit.utils.WorldUtils;
 public class PasteCommand extends WECommand {
     public PasteCommand() {
         super("/paste", Messages.text("text.paste.area"));
+        this.commandParameters.clear();
+        this.commandParameters.put("default", new cn.nukkit.command.data.CommandParameter[]{
+            cn.nukkit.command.data.CommandParameter.newEnum("ignoreAir", true, new String[]{"-a"})
+        });
     }
 
     @Override
@@ -21,6 +25,11 @@ public class PasteCommand extends WECommand {
                 return;
             }
 
+            if (args.length > 1 || (args.length == 1 && !args[0].equals("-a"))) {
+                p.sendMessage(Messages.text("clipboard.paste.usage"));
+                return;
+            }
+            boolean skipAir = args.length == 1;
             BlocksArray copy = dat.copiedBlocks;
             if (copy == null || copy.blocks.isEmpty()) {
                 p.sendMessage(Messages.text("text.clipboard.is.empty.use.copy.first.to.copy"));
@@ -29,7 +38,7 @@ public class PasteCommand extends WECommand {
 
             Position pastePosition = new Position(p.getX(), p.getY(), p.getZ(), p.getLevel());
 
-            WorldUtils.pasteAsync(dat, pastePosition, copy)
+            WorldUtils.pasteAsync(dat, pastePosition, copy, skipAir)
                     .thenAccept(blocksPasted -> {
                         p.sendMessage(Messages.text("text.successfully.pasted.blocks", blocksPasted));
                     })

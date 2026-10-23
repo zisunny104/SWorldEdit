@@ -74,3 +74,12 @@ Edit those YAML files to customize messages, or add `lang/<locale>.yml` for anot
 language. Missing entries fall back to English. `${0}`, `${1}`, etc. are literal
 replacement arguments; preserve them when translating. Tool identifiers and block
 names supplied by the core are not translated by the plugin.
+
+### Clipboard air and connections
+Copy captures the entire selected primary block layer, including air. `//paste` includes
+air; `//paste -a` skips air. A clipboard remains reusable after pasting. Copy publishes
+only after completion and preserves the previous clipboard if it fails. Copy, paste and
+undo run in server-thread batches, configured by `clipboard.max-blocks` (default 100000)
+and `clipboard.blocks-per-tick` (default 512). Once placement finishes, paste, stack and
+undo refresh connection-dependent blocks at the destination and its immediate boundary.
+Block entity NBT and extra layers are still not copied.

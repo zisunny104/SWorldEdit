@@ -20,7 +20,7 @@ public final class StackOperation implements Runnable {
     private final List<Block> source = new ArrayList<>();
     private final BlocksArray undo = new BlocksArray();
     private final CompletableFuture<Integer> future = new CompletableFuture<>();
-    private int read, written;
+    private int read, written, refreshed, side;
     private boolean registeredUndo;
 
     public StackOperation(PlayerData player, Position first, Position second, int count,
@@ -87,7 +87,17 @@ public final class StackOperation implements Runnable {
                 level.setBlock(target, source.get(index).clone(), true, false);
                 written++;
             }
-            if (written == volume * count) future.complete(written);
+            while (written == volume * count && refreshed < written && budget-- > 0) {
+                int index = refreshed % volume;
+                int copy = refreshed / volume + 1;
+                Vector3 target = new Vector3(
+                    coordinate(minX, width, dx, copy, index % width),
+                    coordinate(minY, height, dy, copy, index / width / length),
+                    coordinate(minZ, length, dz, copy, index / width % length));
+                Connections.refresh(level, target, side++);
+                if (side == 7) { side = 0; refreshed++; }
+            }
+            if (written == volume * count && refreshed == written) future.complete(written);
             else schedule.accept(this);
         } catch (RuntimeException e) {
             future.completeExceptionally(e); // Partial changes remain available to //undo.
