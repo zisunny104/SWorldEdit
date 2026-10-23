@@ -77,32 +77,51 @@ public final class ClipboardOperation {
             if (y < level.getMinBlockY() || y > level.getMaxBlockY()) throw new IllegalArgumentException("Paste exceeds world height");
             targets.add(new Vector3(x, y, z));
         }
+        List<ChestPairs.Link> pairs = ChestPairs.plan(tags, targets::get,
+                recordUndo ? java.util.Map.of() : clipboard.externalChestPairs);
         BlocksArray undo = new BlocksArray();
+        List<Block> before = new ArrayList<>(java.util.Collections.nCopies(snapshot.size(), null));
+        java.util.Map<Integer,cn.nukkit.nbt.tag.CompoundTag> beforeTags = new java.util.HashMap<>();
         CompletableFuture<Integer> future = new CompletableFuture<>();
         Runnable work = new Runnable() {
-            int index, refreshIndex, side, placed;
+            int prepared, index, pairIndex, refreshIndex, side, placed;
             boolean registered;
             @Override public void run() {
                 try {
                     int budget = batch;
-                    while (index < snapshot.size() && budget-- > 0) {
+                    // Snapshot every destination before unpairing either half of any existing chest.
+                    while (prepared < snapshot.size() && budget-- > 0) {
+                        int cursor = prepared++;
+                        if (skipAir && snapshot.get(cursor).getId() == 0) continue;
+                        Vector3 target = targets.get(cursor);
+                        var previous = BlockEntities.capture(level, target);
+                        if (previous != null) {
+                            beforeTags.put(cursor, previous);
+                            if (recordUndo) ChestPairs.rememberPeer(level, previous, undo.externalChestPairs);
+                        }
+                        before.set(cursor, level.getBlock(target).clone());
+                    }
+                    while (prepared == snapshot.size() && index < snapshot.size() && budget-- > 0) {
                         Block block = snapshot.get(index);
                         Vector3 target = targets.get(index++);
                         if (skipAir && block.getId() == 0) continue;
                         if (!registered && recordUndo) { player.addUndoBlocks(undo); registered = true; }
-                        var previous = BlockEntities.capture(level, target);
+                        var previous = beforeTags.get(index - 1);
                         if (previous != null) undo.blockEntities.put(undo.blocks.size(), previous);
-                        undo.blocks.add(level.getBlock(target).clone());
+                        undo.blocks.add(before.get(index - 1));
                         BlockEntities.place(level, target, block, tags.get(index - 1));
                         placed++;
                     }
-                    // All placements are complete before deriving connections from destination neighbours.
-                    while (index == snapshot.size() && refreshIndex < targets.size() && budget-- > 0) {
+                    while (index == snapshot.size() && pairIndex < pairs.size() && budget-- > 0) {
+                        ChestPairs.apply(level, pairs.get(pairIndex++));
+                    }
+                    // Pair restoration and every placement precede connection refresh.
+                    while (index == snapshot.size() && pairIndex == pairs.size() && refreshIndex < targets.size() && budget-- > 0) {
                         if (skipAir && snapshot.get(refreshIndex).getId() == 0) { refreshIndex++; side = 0; continue; }
                         Connections.refresh(level, targets.get(refreshIndex), side++);
                         if (side == 7) { side = 0; refreshIndex++; }
                     }
-                    if (index == snapshot.size() && refreshIndex == targets.size()) future.complete(placed);
+                    if (index == snapshot.size() && pairIndex == pairs.size() && refreshIndex == targets.size()) future.complete(placed);
                     else schedule.accept(this);
                 } catch (RuntimeException | LinkageError e) { future.completeExceptionally(e); }
             }

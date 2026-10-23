@@ -21,7 +21,9 @@ public final class StackOperation implements Runnable {
     private final java.util.Map<Integer, cn.nukkit.nbt.tag.CompoundTag> tags = new java.util.HashMap<>();
     private final BlocksArray undo = new BlocksArray();
     private final CompletableFuture<Integer> future = new CompletableFuture<>();
-    private int read, written, refreshed, side;
+    private int read, prepared, written, paired, refreshed, side;
+    private final BlocksArray before = new BlocksArray();
+    private List<ChestPairs.Link> pairs;
     private boolean registeredUndo;
 
     public StackOperation(PlayerData player, Position first, Position second, int count,
@@ -76,7 +78,24 @@ public final class StackOperation implements Runnable {
                 source.add(level.getBlock(position).clone());
                 read++;
             }
-            while (read == volume && written < volume * count && budget-- > 0) {
+            if (read == volume && pairs == null) {
+                pairs = ChestPairs.plan(tags, index -> new Vector3(minX + index % width,
+                        minY + index / width / length, minZ + index / width % length), java.util.Map.of());
+            }
+            while (read == volume && prepared < volume * count && budget-- > 0) {
+                int index = prepared % volume, copy = prepared / volume + 1;
+                Vector3 target = new Vector3(coordinate(minX,width,dx,copy,index % width),
+                        coordinate(minY,height,dy,copy,index / width / length),
+                        coordinate(minZ,length,dz,copy,index / width % length));
+                var previous = BlockEntities.capture(level,target);
+                if (previous != null) {
+                    before.blockEntities.put(prepared,previous);
+                    ChestPairs.rememberPeer(level,previous,undo.externalChestPairs);
+                }
+                before.blocks.add(level.getBlock(target).clone());
+                prepared++;
+            }
+            while (prepared == volume * count && written < volume * count && budget-- > 0) {
                 int index = written % volume;
                 int copy = written / volume + 1;
                 Vector3 target = new Vector3(
@@ -87,13 +106,19 @@ public final class StackOperation implements Runnable {
                     player.addUndoBlocks(undo);
                     registeredUndo = true;
                 }
-                var previous = BlockEntities.capture(level, target);
+                var previous = before.blockEntities.get(written);
                 if (previous != null) undo.blockEntities.put(undo.blocks.size(), previous);
-                undo.blocks.add(level.getBlock(target).clone());
+                undo.blocks.add(before.blocks.get(written));
                 BlockEntities.place(level, target, source.get(index), tags.get(index));
                 written++;
             }
-            while (written == volume * count && refreshed < written && budget-- > 0) {
+            while (written == volume * count && paired < pairs.size() * count && budget-- > 0) {
+                int copy = paired / pairs.size() + 1;
+                ChestPairs.apply(level, pairs.get(paired % pairs.size()).shifted(
+                        (long)width * dx * copy, (long)height * dy * copy, (long)length * dz * copy));
+                paired++;
+            }
+            while (written == volume * count && paired == pairs.size() * count && refreshed < written && budget-- > 0) {
                 int index = refreshed % volume;
                 int copy = refreshed / volume + 1;
                 Vector3 target = new Vector3(
@@ -103,7 +128,7 @@ public final class StackOperation implements Runnable {
                 Connections.refresh(level, target, side++);
                 if (side == 7) { side = 0; refreshed++; }
             }
-            if (written == volume * count && refreshed == written) future.complete(written);
+            if (written == volume * count && paired == pairs.size() * count && refreshed == written) future.complete(written);
             else schedule.accept(this);
         } catch (RuntimeException | LinkageError e) {
             future.completeExceptionally(e); // Partial changes remain available to //undo.

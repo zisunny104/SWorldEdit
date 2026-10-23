@@ -125,4 +125,73 @@ class ClipboardOperationTest {
             assertEquals(12,tiles.get("2,70,0").namedTag.getList("Items",cn.nukkit.nbt.tag.CompoundTag.class).get(0).getByte("Count"));
         }
     }
+
+    public interface PairedChest {
+        cn.nukkit.blockentity.BlockEntity getPair();
+        boolean pairWith(cn.nukkit.blockentity.BlockEntity other);
+        boolean unpair();
+    }
+
+    @Test void doubleChestsSurvivePasteUndoPartialOverwriteAndSeparateStackCopies() {
+        var tiles=new HashMap<String,cn.nukkit.blockentity.BlockEntity>();
+        var links=new HashMap<cn.nukkit.blockentity.BlockEntity,cn.nukkit.blockentity.BlockEntity>();
+        java.util.function.Function<cn.nukkit.nbt.tag.CompoundTag,cn.nukkit.blockentity.BlockEntitySpawnable> tile=tag -> {
+            var entity=mock(cn.nukkit.blockentity.BlockEntitySpawnable.class,withSettings().extraInterfaces(PairedChest.class));
+            entity.namedTag=tag.clone();when(entity.isBlockEntityValid()).thenReturn(true);
+            PairedChest api=(PairedChest)entity;
+            when(api.getPair()).thenAnswer(call->links.get(entity));
+            when(api.pairWith(any(cn.nukkit.blockentity.BlockEntity.class))).thenAnswer(call->{
+                cn.nukkit.blockentity.BlockEntity other=call.getArgument(0);
+                if(links.containsKey(entity)||links.containsKey(other))return false;
+                links.put(entity,other);links.put(other,entity);
+                entity.namedTag.putInt("pairx",other.namedTag.getInt("x")).putInt("pairz",other.namedTag.getInt("z"));
+                other.namedTag.putInt("pairx",entity.namedTag.getInt("x")).putInt("pairz",entity.namedTag.getInt("z"));
+                return true;
+            });
+            when(api.unpair()).thenAnswer(call->{
+                var other=links.remove(entity);entity.namedTag.remove("pairx").remove("pairz");
+                if(other!=null){links.remove(other);other.namedTag.remove("pairx").remove("pairz");}return other!=null;
+            });
+            doAnswer(call->{tiles.remove(entity.namedTag.getInt("x")+",70,0");return null;}).when(entity).close();
+            return entity;
+        };
+        for(int x:new int[]{0,1,10,11}) {
+            var tag=new cn.nukkit.nbt.tag.CompoundTag().putString("id","Chest").putInt("x",x).putInt("y",70).putInt("z",0)
+                .putInt("pairx",x%2==0?x+1:x-1).putInt("pairz",0)
+                .putList(new cn.nukkit.nbt.tag.ListTag<cn.nukkit.nbt.tag.CompoundTag>("Items")
+                    .add(new cn.nukkit.nbt.tag.CompoundTag().putByte("Count",x<2?12+x:x-7)));
+            tiles.put(x+",70,0",tile.apply(tag));world.put(x+",70,0",block(54,x,70,0));
+        }
+        for(int x:new int[]{0,10}) {links.put(tiles.get(x+",70,0"),tiles.get((x+1)+",70,0"));links.put(tiles.get((x+1)+",70,0"),tiles.get(x+",70,0"));}
+        when(level.getBlockEntity(any(Vector3.class))).thenAnswer(call->tiles.get(key(call.getArgument(0))));
+        try(var factory=mockStatic(cn.nukkit.blockentity.BlockEntity.class)) {
+            factory.when(()->cn.nukkit.blockentity.BlockEntity.createBlockEntity(anyString(),
+                nullable(cn.nukkit.level.format.FullChunk.class),any(cn.nukkit.nbt.tag.CompoundTag.class))).thenAnswer(call->{
+                    cn.nukkit.nbt.tag.CompoundTag tag=call.getArgument(2);var created=tile.apply(tag);
+                    tiles.put(tag.getInt("x")+",70,0",created);return created;
+                });
+            BlocksArray copy=new BlocksArray();
+            var captured=ClipboardOperation.copy(new Position(0,70,0,level),new Position(1,70,0,level),
+                    new Vector3(0,70,0),copy,100,1,queue::add);finish();assertEquals(2,captured.join());
+            var pasted=ClipboardOperation.paste(player,new Position(10,70,0,level),copy,false,100,1,queue::add);
+            finish();assertEquals(2,pasted.join());assertSame(tiles.get("11,70,0"),links.get(tiles.get("10,70,0")));
+            var undone=ClipboardOperation.undo(player,0,1,queue::add);finish();assertEquals(2,undone.join());
+            assertSame(tiles.get("11,70,0"),links.get(tiles.get("10,70,0")));
+            assertEquals(3,tiles.get("10,70,0").namedTag.getList("Items",cn.nukkit.nbt.tag.CompoundTag.class).get(0).getByte("Count"));
+            assertEquals(4,tiles.get("11,70,0").namedTag.getList("Items",cn.nukkit.nbt.tag.CompoundTag.class).get(0).getByte("Count"));
+            BlocksArray half=new BlocksArray();half.blocks.add(copy.blocks.get(0));half.blockEntities.put(0,copy.blockEntities.get(0));
+            var partial=ClipboardOperation.paste(player,new Position(10,70,0,level),half,false,100,1,queue::add);
+            finish();assertEquals(1,partial.join());assertNull(links.get(tiles.get("10,70,0")));
+            tiles.get("11,70,0").namedTag.getList("Items",cn.nukkit.nbt.tag.CompoundTag.class).get(0).putByte("Count",30);
+            var restore=ClipboardOperation.undo(player,0,1,queue::add);finish();assertEquals(1,restore.join());
+            assertSame(tiles.get("11,70,0"),links.get(tiles.get("10,70,0")));
+            assertEquals(30,tiles.get("11,70,0").namedTag.getList("Items",cn.nukkit.nbt.tag.CompoundTag.class).get(0).getByte("Count"));
+            var stacked=new StackOperation(player,new Position(0,70,0,level),new Position(1,70,0,level),
+                    2,1,0,0,100,1,queue::add).start();finish();assertEquals(4,stacked.join());
+            assertSame(tiles.get("3,70,0"),links.get(tiles.get("2,70,0")));
+            assertSame(tiles.get("5,70,0"),links.get(tiles.get("4,70,0")));
+            assertSame(tiles.get("1,70,0"),links.get(tiles.get("0,70,0")));
+            assertEquals(13,tiles.get("5,70,0").namedTag.getList("Items",cn.nukkit.nbt.tag.CompoundTag.class).get(0).getByte("Count"));
+        }
+    }
 }

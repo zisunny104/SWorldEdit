@@ -91,7 +91,10 @@ and other core-supported block entities retain their data when the core can load
 Missing or incompatible data falls back to a clean usable entity with a warning.
 If even clean initialization fails, the operation fails and attempts to restore the
 previous destination; it does not report a broken container as a successful paste.
-Chest pairing references are deliberately removed: double chests become independent
-single chests with each half retaining its own contents, including when restored.
+Double-chest source references are stripped during individual placement, then rebuilt
+between mutually paired included halves once all blocks exist. Each stacked copy has
+its own pair. Copying only one half keeps it single. Undo captures destination NBT
+before either half is detached and can reconnect an untouched outside half without
+restoring or overwriting that outside half's inventory. Pair failures report an error.
 This does not copy entities, plugin database records, player ender-chest storage, or
 add NBT support to the on-disk schematic format. Game testing is still required.
