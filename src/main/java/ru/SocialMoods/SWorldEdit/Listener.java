@@ -1,5 +1,7 @@
 package ru.SocialMoods.SWorldEdit;
 
+import ru.SocialMoods.SWorldEdit.i18n.Messages;
+
 import cn.nukkit.block.Block;
 import cn.nukkit.blockentity.BlockEntity;
 import cn.nukkit.blockentity.BlockEntitySpawnable;
@@ -69,13 +71,11 @@ public class Listener implements cn.nukkit.event.Listener {
             switch (event.getAction()) {
                 case LEFT_CLICK_BLOCK:
                     data.getSelection().setPosTwo(block.getLocation().clone());
-                    player.sendMessage("Selected second position at " +
-                            block.getFloorX() + ", " + block.getFloorY() + ", " + block.getFloorZ());
+                    player.sendMessage(Messages.text("text.selected.second.position.at", block.getFloorX(), block.getFloorY(), block.getFloorZ()));
                     break;
                 case RIGHT_CLICK_BLOCK:
                     data.getSelection().setPosOne(block.getLocation().clone());
-                    player.sendMessage("Selected first position at " +
-                            block.getFloorX() + ", " + block.getFloorY() + ", " + block.getFloorZ());
+                    player.sendMessage(Messages.text("text.selected.first.position.at", block.getFloorX(), block.getFloorY(), block.getFloorZ()));
                     break;
             }
         } catch (Exception e) {

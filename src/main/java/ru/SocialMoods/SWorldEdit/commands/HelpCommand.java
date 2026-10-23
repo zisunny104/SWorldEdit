@@ -1,11 +1,13 @@
 package ru.SocialMoods.SWorldEdit.commands;
 
+import ru.SocialMoods.SWorldEdit.i18n.Messages;
+
 import ru.SocialMoods.SWorldEdit.PlayerData;
 
 @SuppressWarnings("unused")
 public class HelpCommand extends WECommand {
     public HelpCommand() {
-        super("/help", "List of World Edit Commands");
+        super("/help", Messages.text("text.list.of.world.edit.commands"));
     }
 
     @Override
@@ -19,16 +21,16 @@ public class HelpCommand extends WECommand {
                     if (page >= 1 && page <= 3) {
                         sender.sendMessage(this.getHelpPage(page));
                     } else {
-                        sender.sendMessage("Invalid page number. Please use page 1, 2, or 3");
+                        sender.sendMessage(Messages.text("text.invalid.page.number.please.use.page.1.2"));
                     }
                 } catch (NumberFormatException e) {
-                    sender.sendMessage("Invalid page number. Please use //help <page_number>");
+                    sender.sendMessage(Messages.text("text.invalid.page.number.please.use.help.page.number"));
                 }
             } else {
-                sender.sendMessage("Usage: //help <page_number>");
+                sender.sendMessage(Messages.text("text.usage.help.page.number"));
             }
         } catch (Exception e) {
-            sender.sendMessage("Error displaying help: " + e.getMessage());
+            sender.sendMessage(Messages.text("text.error.displaying.help", e.getMessage()));
         }
     }
 
@@ -37,30 +39,30 @@ public class HelpCommand extends WECommand {
 
         switch (page) {
             case 1: {
-                help.append("WorldEdit Help - Page 1/3:\n");
-                help.append("  //pos1 (//1) - Set first position\n");
-                help.append("  //pos2 (//2) - Set second position\n");
-                help.append("  //set <block> - Set blocks in selected area\n");
-                help.append("  //walls <block> - Create walls in selected area\n");
-                help.append("  //replace <original> <target> - Replace blocks in area");
+                help.append(Messages.text("text.worldedit.help.page.1.3"));
+                help.append(Messages.text("text.pos1.1.set.first.position"));
+                help.append(Messages.text("text.pos2.2.set.second.position"));
+                help.append(Messages.text("text.set.block.set.blocks.in.selected.area"));
+                help.append(Messages.text("text.walls.block.create.walls.in.selected.area"));
+                help.append(Messages.text("text.replace.original.target.replace.blocks.in.area"));
                 break;
             }
             case 2: {
-                help.append("WorldEdit Help - Page 2/3:\n");
-                help.append("  //cyl <block> <radius> - Create cylinder\n");
-                help.append("  //hcyl <block> <radius> - Create hollow cylinder\n");
-                help.append("  //sphere <block> <radius> - Create sphere\n");
-                help.append("  //hsphere <block> <radius> - Create hollow sphere\n");
-                help.append("  //cut - Cut area (replace with air)");
+                help.append(Messages.text("text.worldedit.help.page.2.3"));
+                help.append(Messages.text("text.cyl.block.radius.create.cylinder"));
+                help.append(Messages.text("text.hcyl.block.radius.create.hollow.cylinder"));
+                help.append(Messages.text("text.sphere.block.radius.create.sphere"));
+                help.append(Messages.text("text.hsphere.block.radius.create.hollow.sphere"));
+                help.append(Messages.text("text.cut.cut.area.replace.with.air"));
                 break;
             }
             case 3: {
-                help.append("WorldEdit Help - Page 3/3:\n");
-                help.append("  //copy - Copy selected area to clipboard\n");
-                help.append("  //paste - Paste from clipboard\n  //stack <count> [direction] - Repeat selected area\n");
-                help.append("  //rotate <axis> <degree> - Rotate clipboard content\n");
-                help.append("  //wand - Get selection wand axe\n");
-                help.append("  //desel - Clear current selection");
+                help.append(Messages.text("text.worldedit.help.page.3.3"));
+                help.append(Messages.text("text.copy.copy.selected.area.to.clipboard"));
+                help.append(Messages.text("text.paste.paste.from.clipboard.stack.count.direction.repeat"));
+                help.append(Messages.text("text.rotate.axis.degree.rotate.clipboard.content"));
+                help.append(Messages.text("text.wand.get.selection.wand.axe"));
+                help.append(Messages.text("text.desel.clear.current.selection"));
                 break;
             }
         }

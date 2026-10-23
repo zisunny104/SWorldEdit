@@ -1,5 +1,7 @@
 package ru.SocialMoods.SWorldEdit.commands;
 
+import ru.SocialMoods.SWorldEdit.i18n.Messages;
+
 import cn.nukkit.Player;
 import cn.nukkit.math.Vector3;
 import ru.SocialMoods.SWorldEdit.PlayerData;
@@ -12,7 +14,7 @@ import java.util.HashSet;
 public class StackCommand extends WECommand {
     private final Set<String> busy = new HashSet<>();
     public StackCommand() {
-        super("/stack", "Repeat the selection in a direction");
+        super("/stack", Messages.text("text.repeat.the.selection.in.a.direction"));
         this.commandParameters.clear();
         this.commandParameters.put("default", new cn.nukkit.command.data.CommandParameter[]{
             cn.nukkit.command.data.CommandParameter.newType("count", cn.nukkit.command.data.CommandParamType.INT),
@@ -41,15 +43,15 @@ public class StackCommand extends WECommand {
 
     @Override public void execute(Player p, PlayerData data, String[] args) {
         if (args.length < 1 || args.length > 2) {
-            p.sendMessage("Usage: //stack <count> [north|south|east|west|up|down]");
+            p.sendMessage(Messages.text("text.usage.stack.count.north.south.east.west.up"));
             return;
         }
         if (data == null || !data.hasSelection()) {
-            p.sendMessage("Please select area first using //pos1 and //pos2");
+            p.sendMessage(Messages.text("text.please.select.area.first.using.pos1.and.pos2"));
             return;
         }
         String key = p.getName().toLowerCase(Locale.ROOT);
-        if (busy.contains(key)) { p.sendMessage("Your previous stack is still running"); return; }
+        if (busy.contains(key)) { p.sendMessage(Messages.text("text.your.previous.stack.is.still.running")); return; }
         try {
             int count = Integer.parseInt(args[0]);
             int[] direction = direction(args.length == 2 ? args[1] : null, p.getDirectionVector());
@@ -62,10 +64,10 @@ public class StackCommand extends WECommand {
             busy.add(key);
             operation.start().whenComplete((changed, error) -> {
                 busy.remove(key);
-                if (error == null) p.sendMessage("Successfully stacked " + changed + " blocks");
-                else p.sendMessage("Stack failed; use //undo for partial changes: " + error.getMessage());
+                if (error == null) p.sendMessage(Messages.text("text.successfully.stacked.blocks", changed));
+                else p.sendMessage(Messages.text("text.stack.failed.use.undo.for.partial.changes", error.getMessage()));
             });
-        } catch (RuntimeException e) { p.sendMessage("Cannot stack: " + e.getMessage()); }
+        } catch (RuntimeException e) { p.sendMessage(Messages.text("text.cannot.stack", e.getMessage())); }
     }
 }
 

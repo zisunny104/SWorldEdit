@@ -1,3 +1,5 @@
 stack:
   max-blocks: 100000
   blocks-per-tick: 512
+
+language: en_US

@@ -66,3 +66,11 @@ The selection and clipboard stay unchanged; `//undo` restores the destination in
 World access is split over server ticks. Configure `stack.max-blocks` and
 `stack.blocks-per-tick` in `config.yml`. The initial implementation copies the primary
 block layer only, without block entity NBT, entities, or additional layers.
+
+### Languages
+Set `language: zh_TW` (or `en_US`) in `config.yml` and restart the plugin.
+Bundled catalogues are copied to `lang/` without overwriting existing files.
+Edit those YAML files to customize messages, or add `lang/<locale>.yml` for another
+language. Missing entries fall back to English. `${0}`, `${1}`, etc. are literal
+replacement arguments; preserve them when translating. Tool identifiers and block
+names supplied by the core are not translated by the plugin.
