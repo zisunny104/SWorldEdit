@@ -64,8 +64,7 @@ Blocks can be specified in multiple formats:
 Omit direction to use the dominant axis of your look direction. Air is included.
 The selection and clipboard stay unchanged; `//undo` restores the destination in one step.
 World access is split over server ticks. Configure `stack.max-blocks` and
-`stack.blocks-per-tick` in `config.yml`. The initial implementation copies the primary
-block layer only, without block entity NBT, entities, or additional layers.
+`stack.blocks-per-tick` in `config.yml`. Stack copies the primary block layer and supported block entity NBT, without entities or additional layers.
 
 ### Languages
 Set `language: zh_TW` (or `en_US`) in `config.yml` and restart the plugin.
@@ -82,4 +81,17 @@ only after completion and preserves the previous clipboard if it fails. Copy, pa
 undo run in server-thread batches, configured by `clipboard.max-blocks` (default 100000)
 and `clipboard.blocks-per-tick` (default 512). Once placement finishes, paste, stack and
 undo refresh connection-dependent blocks at the destination and its immediate boundary.
-Block entity NBT and extra layers are still not copied.
+The primary layer now includes block entity NBT; extra layers remain outside this scope.
+
+### Block entity NBT
+Copy/paste, stack and their undo records capture deep-cloned block entity NBT after
+flushing runtime inventory data. Each placed copy gets its destination coordinates,
+its own block entity instance, and a dirty flag for persistence. Signs, containers
+and other core-supported block entities retain their data when the core can load it.
+Missing or incompatible data falls back to a clean usable entity with a warning.
+If even clean initialization fails, the operation fails and attempts to restore the
+previous destination; it does not report a broken container as a successful paste.
+Chest pairing references are deliberately removed: double chests become independent
+single chests with each half retaining its own contents, including when restored.
+This does not copy entities, plugin database records, player ender-chest storage, or
+add NBT support to the on-disk schematic format. Game testing is still required.

@@ -18,6 +18,7 @@ public final class StackOperation implements Runnable {
     private final int minX, minY, minZ, width, height, length, volume, count, dx, dy, dz;
     private final int batchSize;
     private final List<Block> source = new ArrayList<>();
+    private final java.util.Map<Integer, cn.nukkit.nbt.tag.CompoundTag> tags = new java.util.HashMap<>();
     private final BlocksArray undo = new BlocksArray();
     private final CompletableFuture<Integer> future = new CompletableFuture<>();
     private int read, written, refreshed, side;
@@ -57,7 +58,7 @@ public final class StackOperation implements Runnable {
     }
 
     public CompletableFuture<Integer> start() {
-        try { schedule.accept(this); } catch (RuntimeException e) { future.completeExceptionally(e); }
+        try { schedule.accept(this); } catch (RuntimeException | LinkageError e) { future.completeExceptionally(e); }
         return future;
     }
 
@@ -69,7 +70,10 @@ public final class StackOperation implements Runnable {
                 int x = read % width;
                 int z = read / width % length;
                 int y = read / width / length;
-                source.add(level.getBlock(new Vector3(minX + x, minY + y, minZ + z)).clone());
+                Vector3 position = new Vector3(minX + x, minY + y, minZ + z);
+                var tag = BlockEntities.capture(level, position);
+                if (tag != null) tags.put(read, tag);
+                source.add(level.getBlock(position).clone());
                 read++;
             }
             while (read == volume && written < volume * count && budget-- > 0) {
@@ -83,8 +87,10 @@ public final class StackOperation implements Runnable {
                     player.addUndoBlocks(undo);
                     registeredUndo = true;
                 }
+                var previous = BlockEntities.capture(level, target);
+                if (previous != null) undo.blockEntities.put(undo.blocks.size(), previous);
                 undo.blocks.add(level.getBlock(target).clone());
-                level.setBlock(target, source.get(index).clone(), true, false);
+                BlockEntities.place(level, target, source.get(index), tags.get(index));
                 written++;
             }
             while (written == volume * count && refreshed < written && budget-- > 0) {
@@ -99,7 +105,7 @@ public final class StackOperation implements Runnable {
             }
             if (written == volume * count && refreshed == written) future.complete(written);
             else schedule.accept(this);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException | LinkageError e) {
             future.completeExceptionally(e); // Partial changes remain available to //undo.
         }
     }

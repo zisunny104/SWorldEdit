@@ -28,6 +28,7 @@ public final class ClipboardOperation {
         Vector3 anchor = new Vector3(origin.getFloorX(), origin.getFloorY(), origin.getFloorZ());
         CompletableFuture<Integer> future = new CompletableFuture<>();
         List<Block> snapshot = new ArrayList<>();
+        java.util.Map<Integer, cn.nukkit.nbt.tag.CompoundTag> tags = new java.util.HashMap<>();
         Runnable work = new Runnable() {
             int index;
             @Override public void run() {
@@ -35,6 +36,8 @@ public final class ClipboardOperation {
                     int end = (int)Math.min((long)volume, (long)index + batch);
                     while (index < end) {
                         int x = index % width, z = index / width % length, y = index / width / length;
+                        var tag = BlockEntities.capture(level, new Vector3(minX + x, minY + y, minZ + z));
+                        if (tag != null) tags.put(index, tag);
                         snapshot.add(BlockSnapshots.relative(level, minX + x, minY + y, minZ + z, anchor));
                         index++;
                     }
@@ -42,12 +45,14 @@ public final class ClipboardOperation {
                     else {
                         output.blocks.clear();
                         output.blocks.addAll(snapshot);
+                        output.blockEntities.clear();
+                        output.blockEntities.putAll(tags);
                         future.complete(volume);
                     }
-                } catch (RuntimeException e) { future.completeExceptionally(e); }
+                } catch (RuntimeException | LinkageError e) { future.completeExceptionally(e); }
             }
         };
-        try { schedule.accept(work); } catch (RuntimeException e) { future.completeExceptionally(e); }
+        try { schedule.accept(work); } catch (RuntimeException | LinkageError e) { future.completeExceptionally(e); }
         return future;
     }
 
@@ -61,6 +66,8 @@ public final class ClipboardOperation {
         if (center.level == null || batch < 1) throw new IllegalArgumentException("Invalid paste destination or batch size");
         Level level = center.level;
         List<Block> snapshot = List.copyOf(clipboard.blocks);
+        java.util.Map<Integer, cn.nukkit.nbt.tag.CompoundTag> tags = new java.util.HashMap<>();
+        clipboard.blockEntities.forEach((index, tag) -> tags.put(index, tag.clone()));
         if (snapshot.size() > limit) throw new IllegalArgumentException("Clipboard exceeds configured limit");
         List<Vector3> targets = new ArrayList<>(snapshot.size());
         for (Block block : snapshot) {
@@ -83,8 +90,10 @@ public final class ClipboardOperation {
                         Vector3 target = targets.get(index++);
                         if (skipAir && block.getId() == 0) continue;
                         if (!registered && recordUndo) { player.addUndoBlocks(undo); registered = true; }
+                        var previous = BlockEntities.capture(level, target);
+                        if (previous != null) undo.blockEntities.put(undo.blocks.size(), previous);
                         undo.blocks.add(level.getBlock(target).clone());
-                        BlockSnapshots.place(level, target, block, false);
+                        BlockEntities.place(level, target, block, tags.get(index - 1));
                         placed++;
                     }
                     // All placements are complete before deriving connections from destination neighbours.
@@ -95,10 +104,10 @@ public final class ClipboardOperation {
                     }
                     if (index == snapshot.size() && refreshIndex == targets.size()) future.complete(placed);
                     else schedule.accept(this);
-                } catch (RuntimeException e) { future.completeExceptionally(e); }
+                } catch (RuntimeException | LinkageError e) { future.completeExceptionally(e); }
             }
         };
-        try { schedule.accept(work); } catch (RuntimeException e) { future.completeExceptionally(e); }
+        try { schedule.accept(work); } catch (RuntimeException | LinkageError e) { future.completeExceptionally(e); }
         return future;
     }
 

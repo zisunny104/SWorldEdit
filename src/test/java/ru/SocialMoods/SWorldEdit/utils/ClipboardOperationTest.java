@@ -83,5 +83,46 @@ class ClipboardOperationTest {
         var result=ClipboardOperation.paste(player,new Position(10,70,0,level),copy,false,100,1,queue::add);
         finish();assertEquals(2,result.join());verify(boundary).onUpdate(Level.BLOCK_UPDATE_NORMAL);
     }
-}
 
+    @Test void copyPasteStackAndUndoCarryDetachedInventoryNbt() {
+        var tiles = new HashMap<String,cn.nukkit.blockentity.BlockEntity>();
+        java.util.function.Function<cn.nukkit.nbt.tag.CompoundTag,cn.nukkit.blockentity.BlockEntitySpawnable> tile = tag -> {
+            var entity=mock(cn.nukkit.blockentity.BlockEntitySpawnable.class);
+            entity.namedTag=tag.clone();when(entity.isBlockEntityValid()).thenReturn(true);
+            String position=tag.getInt("x")+","+tag.getInt("y")+","+tag.getInt("z");
+            doAnswer(call -> { tiles.remove(position);return null; }).when(entity).close();
+            return entity;
+        };
+        var source=new cn.nukkit.nbt.tag.CompoundTag().putString("id","Chest").putInt("x",0).putInt("y",70).putInt("z",0)
+                .putList(new cn.nukkit.nbt.tag.ListTag<cn.nukkit.nbt.tag.CompoundTag>("Items")
+                    .add(new cn.nukkit.nbt.tag.CompoundTag().putByte("Count",12)));
+        var previous=source.clone().putInt("x",10);
+        previous.getList("Items",cn.nukkit.nbt.tag.CompoundTag.class).get(0).putByte("Count",3);
+        tiles.put("0,70,0",tile.apply(source));tiles.put("10,70,0",tile.apply(previous));
+        world.put("0,70,0",block(54,0,70,0));world.put("10,70,0",block(54,10,70,0));
+        when(level.getBlockEntity(any(Vector3.class))).thenAnswer(call -> tiles.get(key(call.getArgument(0))));
+        try(var factory=mockStatic(cn.nukkit.blockentity.BlockEntity.class)) {
+            factory.when(() -> cn.nukkit.blockentity.BlockEntity.createBlockEntity(anyString(),
+                    nullable(cn.nukkit.level.format.FullChunk.class),any(cn.nukkit.nbt.tag.CompoundTag.class)))
+                    .thenAnswer(call -> {
+                        cn.nukkit.nbt.tag.CompoundTag tag=call.getArgument(2);var entity=tile.apply(tag);
+                        tiles.put(tag.getInt("x")+","+tag.getInt("y")+","+tag.getInt("z"),entity);return entity;
+                    });
+            BlocksArray copy=new BlocksArray();
+            var captured=ClipboardOperation.copy(new Position(0,70,0,level),new Position(0,70,0,level),
+                    new Vector3(0,70,0),copy,100,1,queue::add);finish();assertEquals(1,captured.join());
+            var pasted=ClipboardOperation.paste(player,new Position(10,70,0,level),copy,false,100,1,queue::add);
+            finish();assertEquals(1,pasted.join());
+            assertEquals(12,tiles.get("10,70,0").namedTag.getList("Items",cn.nukkit.nbt.tag.CompoundTag.class).get(0).getByte("Count"));
+            var undone=ClipboardOperation.undo(player,0,1,queue::add);finish();assertEquals(1,undone.join());
+            assertEquals(3,tiles.get("10,70,0").namedTag.getList("Items",cn.nukkit.nbt.tag.CompoundTag.class).get(0).getByte("Count"));
+            var stacked=new StackOperation(player,new Position(0,70,0,level),new Position(0,70,0,level),
+                    2,1,0,0,100,1,queue::add).start();finish();assertEquals(2,stacked.join());
+            assertEquals(12,tiles.get("2,70,0").namedTag.getList("Items",cn.nukkit.nbt.tag.CompoundTag.class).get(0).getByte("Count"));
+            tiles.get("1,70,0").namedTag.getList("Items",cn.nukkit.nbt.tag.CompoundTag.class).get(0).putByte("Count",1);
+            assertEquals(12,copy.blockEntities.get(0).getList("Items",cn.nukkit.nbt.tag.CompoundTag.class).get(0).getByte("Count"));
+            assertEquals(12,tiles.get("0,70,0").namedTag.getList("Items",cn.nukkit.nbt.tag.CompoundTag.class).get(0).getByte("Count"));
+            assertEquals(12,tiles.get("2,70,0").namedTag.getList("Items",cn.nukkit.nbt.tag.CompoundTag.class).get(0).getByte("Count"));
+        }
+    }
+}
