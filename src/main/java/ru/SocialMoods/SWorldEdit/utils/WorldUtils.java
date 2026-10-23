@@ -40,7 +40,7 @@ public class WorldUtils {
                         for (int z = minZ; z <= maxZ; z++) {
                             v.setComponents(x, y, z);
                             undo.blocks.add(level.getBlock(v));
-                            level.setBlock(v, b, true, false);
+                            BlockSnapshots.place(level, v, b, false);
                             blocks.incrementAndGet();
                         }
                     }
@@ -116,14 +116,8 @@ public class WorldUtils {
                 for (int x = minX; x <= maxX; x++) {
                     for (int y = minY; y <= maxY; y++) {
                         for (int z = minZ; z <= maxZ; z++) {
-                            int id = level.getBlockIdAt(x, y, z);
-                            if (id == 0) continue;
-
-                            int damage = level.getBlockDataAt(x, y, z);
-                            Block block = Block.get(id, damage);
-                            if (block == null) continue;
-
-                            block.setComponents(x - center.getFloorX(), y - center.getFloorY(), z - center.getFloorZ());
+                            Block block = BlockSnapshots.relative(level, x, y, z, center);
+                            if (block.getId() == 0) continue;
                             copy.blocks.add(block);
                             blocks.incrementAndGet();
                         }
@@ -158,7 +152,7 @@ public class WorldUtils {
                             center.getFloorZ() + b.z
                     );
                     undo.blocks.add(level.getBlock(v));
-                    level.setBlock(v, b, true, false);
+                    BlockSnapshots.place(level, v, b, false);
                     blocks.incrementAndGet();
                 }
             });
@@ -248,7 +242,7 @@ public class WorldUtils {
                         if (x * x + z * z > radius * radius) continue;
                         v.setComponents(center.x + x, center.y, center.z + z);
                         undo.blocks.add(level.getBlock(v));
-                        level.setBlock(v, b, true, false);
+                        BlockSnapshots.place(level, v, b, false);
                         blocks.incrementAndGet();
                     }
                 }
@@ -281,7 +275,7 @@ public class WorldUtils {
                         if (distanceSquared > radius * radius || distanceSquared <= (radius - 1) * (radius - 1)) continue;
                         v.setComponents(center.x + x, center.y, center.z + z);
                         undo.blocks.add(level.getBlock(v));
-                        level.setBlock(v, b, true, false);
+                        BlockSnapshots.place(level, v, b, false);
                         blocks.incrementAndGet();
                     }
                 }
@@ -314,7 +308,7 @@ public class WorldUtils {
                             if (x * x + y * y + z * z > radius * radius) continue;
                             v.setComponents(center.x + x, center.y + y, center.z + z);
                             undo.blocks.add(level.getBlock(v));
-                            level.setBlock(v, b, true, false);
+                            BlockSnapshots.place(level, v, b, false);
                             blocks.incrementAndGet();
                         }
                     }
@@ -349,7 +343,7 @@ public class WorldUtils {
                             if (distanceSquared > radius * radius || distanceSquared <= (radius - 1) * (radius - 1)) continue;
                             v.setComponents(center.x + x, center.y + y, center.z + z);
                             undo.blocks.add(level.getBlock(v));
-                            level.setBlock(v, b, true, false);
+                            BlockSnapshots.place(level, v, b, false);
                             blocks.incrementAndGet();
                         }
                     }
@@ -445,7 +439,7 @@ public class WorldUtils {
                 Vector3 v = new Vector3();
                 for (Block b : redo.blocks) {
                     v.setComponents(b.x, b.y, b.z);
-                    b.level.setBlock(v, b, true, true);
+                    BlockSnapshots.place(b.level, v, b, true);
                     blocks.incrementAndGet();
                 }
             });
