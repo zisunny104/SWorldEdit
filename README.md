@@ -57,3 +57,11 @@ Blocks can be specified in multiple formats:
 - **Numeric ID**: `1`, `5:2`  
 - **Block Names**: `stone`, `oak_planks`  
 - **Full Names**: `minecraft:stone`  
+
+### Languages
+Set `language: zh_TW` (or `en_US`) in `config.yml` and restart the plugin.
+Bundled catalogues are copied to `lang/` without overwriting existing files.
+Edit those YAML files to customize messages, or add `lang/<locale>.yml` for another
+language. Missing entries fall back to English. `${0}`, `${1}`, etc. are literal
+replacement arguments; preserve them when translating. Tool identifiers and block
+names supplied by the core are not translated by the plugin.

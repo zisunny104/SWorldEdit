@@ -1,5 +1,7 @@
 package ru.SocialMoods.SWorldEdit.utils;
 
+import ru.SocialMoods.SWorldEdit.i18n.Messages;
+
 import cn.nukkit.Player;
 import cn.nukkit.block.Block;
 import cn.nukkit.block.BlockID;
@@ -33,14 +35,14 @@ public class Utils {
                 }
             }
         } catch (Exception e) {
-            SWorldEdit.get().getLogger().warning("Failed to initialize block name mapping: " + e.getMessage());
+            SWorldEdit.get().getLogger().warning(Messages.text("text.failed.to.initialize.block.name.mapping", e.getMessage()));
         }
     }
 
     public static Block fromString(String str, Player player) {
         if (str == null || str.isEmpty()) {
             if (player != null) {
-                player.sendMessage("Empty block string provided");
+                player.sendMessage(Messages.text("text.empty.block.string.provided"));
             }
             return null;
         }
@@ -79,14 +81,14 @@ public class Utils {
                 Object block = blockTypeClass.getMethod("createBlock").invoke(blockType);
                 if (block instanceof Block) {
                     if (player != null) {
-                        player.sendMessage("Block created using BlockType: " + blockStr);
+                        player.sendMessage(Messages.text("text.block.created.using.blocktype", blockStr));
                     }
                     return (Block) block;
                 }
             }
         } catch (Exception e) {
             blockTypesAvailable = false;
-            SWorldEdit.get().getLogger().warning("BlockTypes not available, falling back to BlockID mapping. Error: " + e.getMessage());
+            SWorldEdit.get().getLogger().warning(Messages.text("text.blocktypes.not.available.falling.back.to.blockid.mapping", e.getMessage()));
         }
         return null;
     }
@@ -108,12 +110,12 @@ public class Utils {
 
                 Block block = Block.get(blockId, blockData);
                 if (player != null) {
-                    player.sendMessage("Block created using BlockID mapping: " + str);
+                    player.sendMessage(Messages.text("text.block.created.using.blockid.mapping", str));
                 }
                 return block;
             }
         } catch (Exception e) {
-            SWorldEdit.get().getLogger().warning("Failed to parse block using BlockID mapping: " + str + " - " + e.getMessage());
+            SWorldEdit.get().getLogger().warning(Messages.text("text.failed.to.parse.block.using.blockid.mapping", str, e.getMessage()));
         }
         return null;
     }
@@ -131,20 +133,20 @@ public class Utils {
             Block block = Block.get(blockId, blockData);
 
             if (player != null) {
-                player.sendMessage("Block created using ID:DATA format: " + str);
+                player.sendMessage(Messages.text("text.block.created.using.id.data.format", str));
             }
 
             return block;
         } catch (NumberFormatException e) {
             if (player != null) {
-                player.sendMessage("Invalid block format: " + str + ". Use ID:DATA or block name");
+                player.sendMessage(Messages.text("text.invalid.block.format.use.id.data.or.block", str));
             }
-            SWorldEdit.get().getLogger().warning("Invalid block format: " + str);
+            SWorldEdit.get().getLogger().warning(Messages.text("text.invalid.block.format", str));
         } catch (Exception e) {
             if (player != null) {
-                player.sendMessage("Failed to create block: " + str);
+                player.sendMessage(Messages.text("text.failed.to.create.block", str));
             }
-            SWorldEdit.get().getLogger().warning("Failed to create block: " + str + " - " + e.getMessage());
+            SWorldEdit.get().getLogger().warning(Messages.text("text.failed.to.create.block.2", str, e.getMessage()));
         }
         return null;
     }

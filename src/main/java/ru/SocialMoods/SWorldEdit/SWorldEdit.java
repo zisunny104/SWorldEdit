@@ -1,5 +1,7 @@
 package ru.SocialMoods.SWorldEdit;
 
+import ru.SocialMoods.SWorldEdit.i18n.Messages;
+
 import cn.nukkit.plugin.PluginBase;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,6 +26,9 @@ public class SWorldEdit extends PluginBase {
     @Override
     public void onEnable() {
         instance = this;
+        saveDefaultConfig();
+        Messages.configure(getDataFolder().toPath(), getConfig().getString("language", "en_US"),
+                message -> getLogger().warning(message));
 
         try {
             this.getServer().getPluginManager().registerEvents(new Listener(), this);
@@ -33,19 +38,19 @@ public class SWorldEdit extends PluginBase {
 
             registerCommands();
 
-            this.getLogger().info("SWorldEdit has been enabled successfully");
+            this.getLogger().info(Messages.text("text.sworldedit.has.been.enabled.successfully"));
 
         } catch (Exception e) {
-            this.getLogger().error("Error enabling SWorldEdit: " + e);
+            this.getLogger().error(Messages.text("text.error.enabling.sworldedit", e));
         }
     }
 
     @Override
     public void onDisable() {
         try {
-            this.getLogger().info("SWorldEdit has been disabled");
+            this.getLogger().info(Messages.text("text.sworldedit.has.been.disabled"));
         } catch (Exception e) {
-            this.getLogger().error("Error disabling SWorldEdit: " + e);
+            this.getLogger().error(Messages.text("text.error.disabling.sworldedit", e));
         }
     }
 
@@ -70,7 +75,7 @@ public class SWorldEdit extends PluginBase {
             this.getServer().getCommandMap().register("worldedit", new HSphereCommand());
             this.getServer().getCommandMap().register("worldedit", new SchematicCommand(schematicService));
         } catch (Exception e) {
-            this.getLogger().error("Error registering commands: " + e.getMessage());
+            this.getLogger().error(Messages.text("text.error.registering.commands", e.getMessage()));
         }
     }
 
@@ -91,7 +96,7 @@ public class SWorldEdit extends PluginBase {
                 data = new PlayerData(player);
                 this.players.put(playerName, data);
             } catch (Exception e) {
-                this.getLogger().error("Error creating WEPlayer for " + playerName + ": " + e.getMessage());
+                this.getLogger().error(Messages.text("text.error.creating.weplayer.for", playerName, e.getMessage()));
                 return null;
             }
         }

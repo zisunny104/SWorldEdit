@@ -1,12 +1,14 @@
 package ru.SocialMoods.SWorldEdit.commands;
 
+import ru.SocialMoods.SWorldEdit.i18n.Messages;
+
 import ru.SocialMoods.SWorldEdit.PlayerData;
 import ru.SocialMoods.SWorldEdit.utils.WorldUtils;
 
 @SuppressWarnings("unused")
 public class UndoCommand extends WECommand {
     public UndoCommand() {
-        super("/undo", "Cancel action");
+        super("/undo", Messages.text("text.cancel.action"));
         super.setAliases(new String[]{"/redo"});
     }
 
@@ -14,12 +16,12 @@ public class UndoCommand extends WECommand {
     public void execute(cn.nukkit.Player p, PlayerData dat, String[] args) {
         try {
             if (dat == null) {
-                p.sendMessage("Player data not found");
+                p.sendMessage(Messages.text("text.player.data.not.found"));
                 return;
             }
 
             if (dat.getUndoSteps() == null || dat.getUndoSteps().isEmpty()) {
-                p.sendMessage("There's nothing to undo");
+                p.sendMessage(Messages.text("text.there.s.nothing.to.undo"));
                 return;
             }
 
@@ -27,15 +29,15 @@ public class UndoCommand extends WECommand {
 
             WorldUtils.undoAsync(dat, step)
                     .thenAccept(blocksUndone -> {
-                        p.sendMessage("Successfully undone " + blocksUndone + " blocks");
+                        p.sendMessage(Messages.text("text.successfully.undone.blocks", blocksUndone));
                     })
                     .exceptionally(throwable -> {
-                        p.sendMessage("Error while undoing: " + throwable.getMessage());
+                        p.sendMessage(Messages.text("text.error.while.undoing", throwable.getMessage()));
                         return null;
                     });
 
         } catch (Exception e) {
-            p.sendMessage("Error executing undo command: " + e.getMessage());
+            p.sendMessage(Messages.text("text.error.executing.undo.command", e.getMessage()));
         }
     }
 }

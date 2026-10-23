@@ -1,5 +1,7 @@
 package ru.SocialMoods.SWorldEdit.service.impl;
 
+import ru.SocialMoods.SWorldEdit.i18n.Messages;
+
 import cn.nukkit.block.Block;
 import cn.nukkit.level.Level;
 import cn.nukkit.level.Position;
@@ -55,7 +57,7 @@ public class SchematicServiceImpl implements SchematicService {
             try {
                 repository.save(new Schematic(width, height, length, blocks, data), name);
             } catch (Exception e) {
-                throw new RuntimeException("Ошибка сохранения схематики", e);
+                throw new RuntimeException(Messages.text("schematic.save.failed"), e);
             }
         });
     }
@@ -91,7 +93,7 @@ public class SchematicServiceImpl implements SchematicService {
                 dat.addUndoBlocks(undo);
                 return placed;
             } catch (Exception e) {
-                throw new RuntimeException("Ошибка загрузки схематики", e);
+                throw new RuntimeException(Messages.text("schematic.load.failed"), e);
             }
         });
     }
