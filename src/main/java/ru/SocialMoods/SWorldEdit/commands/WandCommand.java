@@ -23,8 +23,8 @@ public class WandCommand extends WECommand {
             p.getInventory().sendHeldItem(p);
 
             p.sendMessage("You have received the WorldEdit wand axe");
-            p.sendMessage("Left click: set position #1");
-            p.sendMessage("Right click: set position #2");
+            p.sendMessage("Right click: set position #1");
+            p.sendMessage("Left click: set position #2");
 
         } catch (Exception e) {
             p.sendMessage("Error giving wand: " + e.getMessage());
