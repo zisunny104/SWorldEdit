@@ -24,6 +24,7 @@ public class SWorldEdit extends PluginBase {
     @Override
     public void onEnable() {
         instance = this;
+        saveDefaultConfig();
 
         try {
             this.getServer().getPluginManager().registerEvents(new Listener(), this);
@@ -56,6 +57,7 @@ public class SWorldEdit extends PluginBase {
             this.getServer().getCommandMap().register("worldedit", new PosTwoCommand());
             this.getServer().getCommandMap().register("worldedit", new WandCommand());
             this.getServer().getCommandMap().register("worldedit", new CopyCommand());
+            this.getServer().getCommandMap().register("worldedit", new StackCommand());
             this.getServer().getCommandMap().register("worldedit", new PasteCommand());
             this.getServer().getCommandMap().register("worldedit", new SetCommand());
             this.getServer().getCommandMap().register("worldedit", new WallsCommand());
