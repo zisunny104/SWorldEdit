@@ -165,5 +165,17 @@
   "clipboard.paste.usage": "Usage: //paste [-a] (-a skips air)",
   "text.command.usage": "Usage: ${0}",
   "text.help.undo": "  //undo - Undo the last operation\n",
-  "text.help.schematic": "  //schem <save|paste> <name> - Save or paste a schematic\n"
+  "text.help.schematic": "  //schem <save|paste> <name> - Save or paste a schematic\n",
+  "tool.description": "Bind a read-only block query tool",
+  "tool.hold-item": "Hold an item before binding a tool.",
+  "tool.info.bound": "Info tool bound to ${0}; right-click a block. Use /tool none to unbind.",
+  "tool.none": "Tool disabled for ${0}; use //wand to restore the selection wand.",
+  "tool.info.position": "World: ${0} | Position: ${1}, ${2}, ${3}",
+  "tool.info.block": "Block: ${0} | Identifier: ${1} | ID/data: ${2}:${3}",
+  "tool.info.state": "States: ${0} | Emitted light: ${1}",
+  "tool.info.input": "Verified block input: ${0}",
+  "tool.info.nbt": "Block entity: ${0} (NBT is not included in block input)",
+  "tool.info.no-nbt": "none",
+  "tool.info.unavailable": "unavailable",
+  "tool.help": "  /tool <info|none> - Bind or disable a right-click block query tool\n"
 }
