@@ -111,7 +111,7 @@ final class BlockEntities {
             entity.setDirty();
             if (entity instanceof BlockEntitySpawnable) ((BlockEntitySpawnable)entity).spawnToAll();
             return true;
-        } catch (RuntimeException | LinkageError e) { return false; }
+        } catch (RuntimeException | LinkageError e) { report("Block entity creation failed at " + target, e); return false; }
     }
 
     static void place(Level level, Vector3 target, Block block, CompoundTag source) {
@@ -149,8 +149,28 @@ final class BlockEntities {
                 (restored ? "; restored the previous destination block." : "; cleared the unusable block. Use //undo to restore the destination."));
     }
 
+    static void verify(Level level, Vector3 target, Block block, CompoundTag source) {
+        String expected = source == null ? type(block) : source.getString("id");
+        if (expected == null || expected.isEmpty()) return;
+        BlockEntity actual = level.getBlockEntity(target);
+        if (actual == null || actual.closed || actual.namedTag == null ||
+                !expected.equalsIgnoreCase(actual.namedTag.getString("id")) || !actual.isBlockEntityValid())
+            throw new IllegalStateException("Missing or invalid registered " + expected + " after paste at " + target + "; use //undo to restore the destination");
+        // Resend only after all blocks and chest links are in place, on a later tick.
+        if (actual instanceof BlockEntitySpawnable) ((BlockEntitySpawnable) actual).spawnToAll();
+    }
+
+    static void report(String message, Throwable error) {
+        var plugin = ru.SocialMoods.SWorldEdit.SWorldEdit.get();
+        if (plugin != null) {
+            if (error == null) plugin.getLogger().info(message);
+            else plugin.getLogger().warning(message, error);
+        } else if (error == null) LOG.info(message);
+        else LOG.log(java.util.logging.Level.WARNING, message, error);
+    }
+
     private static void warn(Vector3 position, String type, String reason) {
-        LOG.warning(type + " at " + position.getFloorX() + "," + position.getFloorY() + "," + position.getFloorZ() + ": " + reason);
+        report(type + " at " + position.getFloorX() + "," + position.getFloorY() + "," + position.getFloorZ() + ": " + reason, null);
     }
 }
 

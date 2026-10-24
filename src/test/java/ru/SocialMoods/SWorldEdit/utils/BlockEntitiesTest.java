@@ -115,4 +115,14 @@ class BlockEntitiesTest {
         assertNull(BlockEntities.capture(level,new Vector3(1,70,2)));
         verify(stale,never()).saveNBT();
     }
+    @Test void missingOrWrongRegisteredEntityCannotReportSuccessfulPaste() {
+        Level level=mock(Level.class);Vector3 target=new Vector3(1,70,2);
+        assertThrows(IllegalStateException.class,()->BlockEntities.verify(level,target,chest(),contents()));
+        var wrong=validEntity();wrong.namedTag=new CompoundTag().putString("id","PersistentContainer");
+        when(level.getBlockEntity(target)).thenReturn(wrong);
+        assertThrows(IllegalStateException.class,()->BlockEntities.verify(level,target,chest(),contents()));
+        wrong.namedTag=contents();
+        assertDoesNotThrow(()->BlockEntities.verify(level,target,chest(),contents()));
+        verify(wrong).spawnToAll();
+    }
 }

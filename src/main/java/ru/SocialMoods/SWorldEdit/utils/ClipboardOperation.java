@@ -47,12 +47,13 @@ public final class ClipboardOperation {
                         output.blocks.addAll(snapshot);
                         output.blockEntities.clear();
                         output.blockEntities.putAll(tags);
+                        BlockEntities.report("Copy captured Blocks=" + volume + " NBT=" + tagSummary(tags), null);
                         future.complete(volume);
                     }
-                } catch (RuntimeException | LinkageError e) { future.completeExceptionally(e); }
+                } catch (RuntimeException | LinkageError e) { BlockEntities.report("Clipboard operation failed", e); future.completeExceptionally(e); }
             }
         };
-        try { schedule.accept(work); } catch (RuntimeException | LinkageError e) { future.completeExceptionally(e); }
+        try { schedule.accept(work); } catch (RuntimeException | LinkageError e) { BlockEntities.report("Clipboard operation failed", e); future.completeExceptionally(e); }
         return future;
     }
 
@@ -85,7 +86,7 @@ public final class ClipboardOperation {
         CompletableFuture<Integer> future = new CompletableFuture<>();
         Runnable work = new Runnable() {
             int prepared, index, pairIndex, refreshIndex, side, placed;
-            boolean registered;
+            boolean registered, validationQueued;
             @Override public void run() {
                 try {
                     int budget = batch;
@@ -115,19 +116,32 @@ public final class ClipboardOperation {
                     while (index == snapshot.size() && pairIndex < pairs.size() && budget-- > 0) {
                         ChestPairs.apply(level, pairs.get(pairIndex++));
                     }
+                    if (index == snapshot.size() && pairIndex == pairs.size() && !validationQueued) {
+                        validationQueued = true; schedule.accept(this); return;
+                    }
                     // Pair restoration and every placement precede connection refresh.
                     while (index == snapshot.size() && pairIndex == pairs.size() && refreshIndex < targets.size() && budget-- > 0) {
                         if (skipAir && snapshot.get(refreshIndex).getId() == 0) { refreshIndex++; side = 0; continue; }
+                        if (side == 0) BlockEntities.verify(level, targets.get(refreshIndex), snapshot.get(refreshIndex), tags.get(refreshIndex));
                         Connections.refresh(level, targets.get(refreshIndex), side++);
                         if (side == 7) { side = 0; refreshIndex++; }
                     }
-                    if (index == snapshot.size() && pairIndex == pairs.size() && refreshIndex == targets.size()) future.complete(placed);
+                    if (index == snapshot.size() && pairIndex == pairs.size() && refreshIndex == targets.size()) {
+                        BlockEntities.report("Paste verified Blocks=" + placed + " NBT=" + tagSummary(tags), null);
+                        future.complete(placed);
+                    }
                     else schedule.accept(this);
-                } catch (RuntimeException | LinkageError e) { future.completeExceptionally(e); }
+                } catch (RuntimeException | LinkageError e) { BlockEntities.report("Clipboard operation failed", e); future.completeExceptionally(e); }
             }
         };
-        try { schedule.accept(work); } catch (RuntimeException | LinkageError e) { future.completeExceptionally(e); }
+        try { schedule.accept(work); } catch (RuntimeException | LinkageError e) { BlockEntities.report("Clipboard operation failed", e); future.completeExceptionally(e); }
         return future;
+    }
+
+    private static String tagSummary(java.util.Map<Integer,cn.nukkit.nbt.tag.CompoundTag> tags) {
+        java.util.Map<String,Integer> counts = new java.util.TreeMap<>();
+        tags.values().forEach(tag -> counts.merge(tag.getString("id"),1,Integer::sum));
+        return counts.toString();
     }
 
     public static CompletableFuture<Integer> undo(PlayerData player, int step, int batch, Consumer<Runnable> schedule) {
