@@ -55,28 +55,10 @@ public class SWorldEdit extends PluginBase {
     }
 
     private void registerCommands() {
-        try {
-            this.getServer().getCommandMap().register("worldedit", new HelpCommand());
-            this.getServer().getCommandMap().register("worldedit", new PosOneCommand());
-            this.getServer().getCommandMap().register("worldedit", new PosTwoCommand());
-            this.getServer().getCommandMap().register("worldedit", new WandCommand());
-            this.getServer().getCommandMap().register("worldedit", new CopyCommand());
-            this.getServer().getCommandMap().register("worldedit", new StackCommand());
-            this.getServer().getCommandMap().register("worldedit", new PasteCommand());
-            this.getServer().getCommandMap().register("worldedit", new SetCommand());
-            this.getServer().getCommandMap().register("worldedit", new WallsCommand());
-            this.getServer().getCommandMap().register("worldedit", new CutCommand());
-            this.getServer().getCommandMap().register("worldedit", new UndoCommand());
-            this.getServer().getCommandMap().register("worldedit", new DeselCommand());
-            this.getServer().getCommandMap().register("worldedit", new ReplaceCommand());
-            this.getServer().getCommandMap().register("worldedit", new RotateCommand());
-            this.getServer().getCommandMap().register("worldedit", new CylCommand());
-            this.getServer().getCommandMap().register("worldedit", new HCylCommand());
-            this.getServer().getCommandMap().register("worldedit", new SphereCommand());
-            this.getServer().getCommandMap().register("worldedit", new HSphereCommand());
-            this.getServer().getCommandMap().register("worldedit", new SchematicCommand(schematicService));
-        } catch (Exception e) {
-            this.getLogger().error(Messages.text("text.error.registering.commands", e.getMessage()));
+        for (var command : CommandRegistry.create(schematicService)) {
+            if (!getServer().getCommandMap().register("worldedit", command)) {
+                getLogger().warning("Command /" + command.getName() + " conflicts with another plugin; fallback: /worldedit:" + command.getName());
+            }
         }
     }
 

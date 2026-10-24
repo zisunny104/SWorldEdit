@@ -27,7 +27,7 @@ public class RotateCommand extends WECommand {
                 return;
             }
 
-            String axis = args[0].toLowerCase();
+            String axis = args[0].toLowerCase(java.util.Locale.ROOT);
             if (!axis.equals("y")) {
                 p.sendMessage(Messages.text("text.currently.only.y.axis.rotation.is.supported"));
                 return;

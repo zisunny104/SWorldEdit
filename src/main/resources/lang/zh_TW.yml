@@ -61,7 +61,7 @@
   "text.worldedit.help.page.3.3": "WorldEdit 說明 — 第 3/3 頁：\n",
   "text.copy.copy.selected.area.to.clipboard": "  //copy - 複製選區至剪貼簿\n",
   "text.paste.paste.from.clipboard": "  //paste [-a] - 貼上剪貼簿內容\n",
-  "text.rotate.axis.degree.rotate.clipboard.content": "  //rotate <axis> <degree> - 旋轉建築\n",
+  "text.rotate.axis.degree.rotate.clipboard.content": "  //rotate <y> <degrees> - 以玩家位置為中心旋轉選區\n",
   "text.wand.get.selection.wand.axe": "  //wand - 取得選取工具\n",
   "text.desel.clear.current.selection": "  //desel - 清除選區",
   "text.list.of.world.edit.commands": "WorldEdit 指令列表",
@@ -93,7 +93,7 @@
   "text.error.while.rotating.blocks": "旋轉方塊時發生錯誤：${0}",
   "text.error.executing.rotate.command": "旋轉時發生錯誤：${0}",
   "text.rotate.structure.around.axis": "繞指定軸旋轉建築",
-  "text.usage.schem.save.paste.name.x.y.z": "用法：//schem <save|paste> <name> [x y z]",
+  "text.usage.schem.save.paste.name.x.y.z": "用法：//schem <save|paste> <name>",
   "text.saving.schematic": "正在儲存範本……",
   "text.error": "錯誤：${0}",
   "text.schematic.has.been.saved": "已儲存範本「${0}」",
@@ -162,5 +162,8 @@
   "text.right.click.set.position.1": "右鍵：設定位置 #1",
   "text.left.click.set.position.2": "左鍵：設定位置 #2",
   "text.unknown.or.unsupported.block": "未知或核心不支援的方塊：${0}",
-  "clipboard.paste.usage": "用法：//paste [-a]（-a 略過空氣）"
+  "clipboard.paste.usage": "用法：//paste [-a]（-a 略過空氣）",
+  "text.command.usage": "用法：${0}",
+  "text.help.undo": "  //undo - 復原上一次操作\n",
+  "text.help.schematic": "  //schem <save|paste> <name> - 儲存或貼上 schematic\n"
 }
