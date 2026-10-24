@@ -47,7 +47,6 @@ public final class ClipboardOperation {
                         output.blocks.addAll(snapshot);
                         output.blockEntities.clear();
                         output.blockEntities.putAll(tags);
-                        BlockEntities.report("Copy captured Blocks=" + volume + " NBT=" + tagSummary(tags), null);
                         future.complete(volume);
                     }
                 } catch (RuntimeException | LinkageError e) { BlockEntities.report("Clipboard operation failed", e); future.completeExceptionally(e); }
@@ -127,7 +126,6 @@ public final class ClipboardOperation {
                         if (side == 7) { side = 0; refreshIndex++; }
                     }
                     if (index == snapshot.size() && pairIndex == pairs.size() && refreshIndex == targets.size()) {
-                        BlockEntities.report("Paste verified Blocks=" + placed + " NBT=" + tagSummary(tags), null);
                         future.complete(placed);
                     }
                     else schedule.accept(this);
@@ -136,12 +134,6 @@ public final class ClipboardOperation {
         };
         try { schedule.accept(work); } catch (RuntimeException | LinkageError e) { BlockEntities.report("Clipboard operation failed", e); future.completeExceptionally(e); }
         return future;
-    }
-
-    private static String tagSummary(java.util.Map<Integer,cn.nukkit.nbt.tag.CompoundTag> tags) {
-        java.util.Map<String,Integer> counts = new java.util.TreeMap<>();
-        tags.values().forEach(tag -> counts.merge(tag.getString("id"),1,Integer::sum));
-        return counts.toString();
     }
 
     public static CompletableFuture<Integer> undo(PlayerData player, int step, int batch, Consumer<Runnable> schedule) {
