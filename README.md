@@ -102,3 +102,6 @@ additional layers. Disk schematics now preserve block entity NBT as well. Game t
 Commands use the existing double-slash labels and declare typed parameters for Bedrock suggestions. All commands require `we.command` (default: OP). `//redo` is not registered because redo is not implemented; use `//undo` to revert the last operation. Block arguments remain strings to accept both namespaced names and numeric ID/metadata syntax.
 
 Use `//stack 3 -a` to skip source air while using your viewing direction, or `//stack 3 east -a` for an explicit direction. Skipped cells keep destination blocks/NBT unchanged and are excluded from undo and the changed-block count. Without `-a`, air is copied as before; spacing still uses the full selection dimensions.
+
+### Block query tool
+Hold an item and run `/tool info`, then right-click a block to inspect its coordinates, type, available states, emitted light, block-entity presence and parser-verified block input. `/tool none` disables the held item type; `//tool` is an alias. Bindings are per-player and session-only, apply to that item type regardless of durability, and do not alter items or blocks. Binding the wand switches it to query mode; `//wand` restores selection mode. NBT contents are not dumped or included in the suggested block input. Selection visualization is not part of this feature.

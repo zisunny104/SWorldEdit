@@ -65,6 +65,7 @@ public class HelpCommand extends WECommand {
                 help.append(Messages.text("text.desel.clear.current.selection"));
                 help.append(Messages.text("text.help.undo"));
                 help.append(Messages.text("text.help.schematic"));
+                help.append(Messages.text("tool.help"));
                 break;
             }
         }

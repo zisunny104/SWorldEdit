@@ -165,5 +165,17 @@
   "clipboard.paste.usage": "用法：//paste [-a]（-a 略過空氣）",
   "text.command.usage": "用法：${0}",
   "text.help.undo": "  //undo - 復原上一次操作\n",
-  "text.help.schematic": "  //schem <save|paste> <name> - 儲存或貼上 schematic\n"
+  "text.help.schematic": "  //schem <save|paste> <name> - 儲存或貼上 schematic\n",
+  "tool.description": "綁定唯讀方塊查詢工具",
+  "tool.hold-item": "請先手持物品再綁定工具。",
+  "tool.info.bound": "已將 ${0} 綁定為查詢工具；右鍵點擊方塊查詢。使用 /tool none 解除。",
+  "tool.none": "已停用 ${0} 的工具功能；使用 //wand 恢復選取工具。",
+  "tool.info.position": "世界：${0}｜座標：${1}, ${2}, ${3}",
+  "tool.info.block": "方塊：${0}｜識別名稱：${1}｜ID／附加資料：${2}:${3}",
+  "tool.info.state": "狀態：${0}｜發光等級：${1}",
+  "tool.info.input": "已驗證的方塊指定值：${0}",
+  "tool.info.nbt": "方塊實體：${0}（方塊指定值不包含 NBT）",
+  "tool.info.no-nbt": "無",
+  "tool.info.unavailable": "無法取得",
+  "tool.help": "  /tool <info|none> - 綁定或停用右鍵方塊查詢工具\n"
 }

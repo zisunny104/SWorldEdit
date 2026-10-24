@@ -10,6 +10,7 @@ import ru.SocialMoods.SWorldEdit.utils.Selection;
 public class PlayerData {
     private final cn.nukkit.Player player;
     private final Selection selection;
+    private final ru.SocialMoods.SWorldEdit.utils.ToolBindings tools = new ru.SocialMoods.SWorldEdit.utils.ToolBindings();
     public BlocksArray copiedBlocks = null;
     public final ArrayList<BlocksArray> undoSteps = new ArrayList<>();
 

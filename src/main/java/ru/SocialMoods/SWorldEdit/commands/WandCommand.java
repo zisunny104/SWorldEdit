@@ -21,6 +21,7 @@ public class WandCommand extends WECommand {
             Item axe = Item.get(271);
             axe.setCustomName("WorldEdit Wand Axe");
 
+            if (dat != null) dat.getTools().restoreWand(axe);
             p.getInventory().setItemInHand(axe);
             p.getInventory().sendHeldItem(p);
 

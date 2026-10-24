@@ -121,7 +121,7 @@ class ListenerTest {
         PlayerInteractEvent denied = click(PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK);
         listener.onInteract(denied);
         assertFalse(denied.isCancelled());
-        verifyNoInteractions(data);
+        assertNull(selection.getPosOne());assertNull(selection.getPosTwo());
     }
 
     private void input(cn.nukkit.network.protocol.types.PlayerActionType action, int x) {
@@ -174,5 +174,23 @@ class ListenerTest {
         assertNull(selection.getPosTwo());
         verify(player, never()).sendMessage(anyString());
         verify(level).sendBlocks(eq(player), any(Block[].class), eq(UpdateBlockPacket.FLAG_ALL_PRIORITY));
+    }
+    @Test void infoBindingReadsRightClickedBlockWithoutSelectingOrModifyingIt() {
+        PlayerData actual=new PlayerData(player);actual.getTools().bind(wand,ru.SocialMoods.SWorldEdit.utils.ToolBindings.Mode.INFO);
+        listener=new Listener(p->actual);
+        var click=click(PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK);listener.onInteract(click);
+        assertTrue(click.isCancelled());assertNull(actual.getSelection().getPosOne());assertNull(actual.getSelection().getPosTwo());
+        verify(player).sendMessage(anyString());verify(level,never()).setBlock(any(cn.nukkit.math.Vector3.class),any(Block.class));
+        var left=click(PlayerInteractEvent.Action.LEFT_CLICK_BLOCK);listener.onInteract(left);assertTrue(left.isCancelled());
+        assertNull(actual.getSelection().getPosTwo());verify(player,times(1)).sendMessage(anyString());
+        var broken=mock(BlockBreakEvent.class);when(broken.getPlayer()).thenReturn(player);when(broken.getItem()).thenReturn(wand);
+        listener.onBlockBreak(broken);verify(broken).setCancelled(true);
+    }
+    @Test void noneDisablesTheWandUntilItIsRestored() {
+        PlayerData actual=new PlayerData(player);actual.getTools().bind(wand,ru.SocialMoods.SWorldEdit.utils.ToolBindings.Mode.NONE);
+        listener=new Listener(p->actual);var disabled=click(PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK);
+        listener.onInteract(disabled);assertFalse(disabled.isCancelled());assertNull(actual.getSelection().getPosOne());
+        actual.getTools().restoreWand(wand);var restored=click(PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK);
+        listener.onInteract(restored);assertTrue(restored.isCancelled());assertNotNull(actual.getSelection().getPosOne());
     }
 }
