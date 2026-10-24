@@ -27,12 +27,12 @@ public class SchematicCommand extends WECommand {
 
     @Override
     public void execute(Player player, PlayerData dat, String[] args) {
-        if (args.length < 2) {
+        if (args.length != 2) {
             player.sendMessage(Messages.text("text.usage.schem.save.paste.name.x.y.z"));
             return;
         }
 
-        String action = args[0].toLowerCase();
+        String action = args[0].toLowerCase(java.util.Locale.ROOT);
         String name = args[1];
 
         switch (action) {

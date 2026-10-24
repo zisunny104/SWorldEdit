@@ -63,6 +63,8 @@ public class HelpCommand extends WECommand {
                 help.append(Messages.text("text.rotate.axis.degree.rotate.clipboard.content"));
                 help.append(Messages.text("text.wand.get.selection.wand.axe"));
                 help.append(Messages.text("text.desel.clear.current.selection"));
+                help.append(Messages.text("text.help.undo"));
+                help.append(Messages.text("text.help.schematic"));
                 break;
             }
         }

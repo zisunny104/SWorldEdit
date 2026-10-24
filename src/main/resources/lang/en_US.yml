@@ -61,7 +61,7 @@
   "text.worldedit.help.page.3.3": "WorldEdit Help - Page 3/3:\n",
   "text.copy.copy.selected.area.to.clipboard": "  //copy - Copy selected area to clipboard\n",
   "text.paste.paste.from.clipboard": "  //paste [-a] - Paste from clipboard\n",
-  "text.rotate.axis.degree.rotate.clipboard.content": "  //rotate <axis> <degree> - Rotate clipboard content\n",
+  "text.rotate.axis.degree.rotate.clipboard.content": "  //rotate <y> <degrees> - Rotate the selected area around your position\n",
   "text.wand.get.selection.wand.axe": "  //wand - Get selection wand axe\n",
   "text.desel.clear.current.selection": "  //desel - Clear current selection",
   "text.list.of.world.edit.commands": "List of World Edit Commands",
@@ -93,7 +93,7 @@
   "text.error.while.rotating.blocks": "Error while rotating blocks: ${0}",
   "text.error.executing.rotate.command": "Error executing rotate command: ${0}",
   "text.rotate.structure.around.axis": "Rotate structure around axis",
-  "text.usage.schem.save.paste.name.x.y.z": "Usage: //schem <save|paste> <name> [x y z]",
+  "text.usage.schem.save.paste.name.x.y.z": "Usage: //schem <save|paste> <name>",
   "text.saving.schematic": "Saving schematic...",
   "text.error": "Error: ${0}",
   "text.schematic.has.been.saved": "Schematic '${0}' has been saved",
@@ -162,5 +162,8 @@
   "text.right.click.set.position.1": "Right click: set position #1",
   "text.left.click.set.position.2": "Left click: set position #2",
   "text.unknown.or.unsupported.block": "Unknown or unsupported block: ${0}",
-  "clipboard.paste.usage": "Usage: //paste [-a] (-a skips air)"
+  "clipboard.paste.usage": "Usage: //paste [-a] (-a skips air)",
+  "text.command.usage": "Usage: ${0}",
+  "text.help.undo": "  //undo - Undo the last operation\n",
+  "text.help.schematic": "  //schem <save|paste> <name> - Save or paste a schematic\n"
 }

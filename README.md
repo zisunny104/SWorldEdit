@@ -40,14 +40,14 @@ SWorldEdit is a powerful world editing plugin for Nukkit servers that provides e
 ### Schematics
 
 - `//schem save <name>` - Save the current selection as a schematic  
-- `//schem paste <name>` - Load a schematic at player's position or at specified coordinates  
+- `//schem paste <name>` - Load a schematic at the player's position
 
 Schematics use SWorldEdit-specific compressed NBT (not Sponge/FAWE `.schem`). Block IDs and metadata are stored as integer arrays, preserving IDs above 255. Older SWorldEdit byte-array files remain readable; previously truncated IDs cannot be recovered and require saving the original structure again. IDs remain core-specific: use a compatible core when loading. Unsupported ID/metadata pairs are rejected before placement. This format stores the primary block layer only; block entity NBT is preserved, including sign text, container contents and reciprocal double-chest links; additional layers are not included. Older files without NBT remain readable and initialize clean block entities. Schematic paste keeps its existing skip-air behavior and uses the batched clipboard placement/undo pipeline.
 
 ### Utility Commands
 
 - `//wand` - Give selection wand axe  
-- `//rotate <axis> <degrees>` - Rotate clipboard content  
+- `//rotate <y> <degrees>` - Rotate the selected area around the player
 - `//help [page]` - Show command help (currently not working)  
 
 ## Block Specification
@@ -98,3 +98,5 @@ before either half is detached and can reconnect an untouched outside half witho
 restoring or overwriting that outside half's inventory. Pair failures report an error.
 This does not copy entities, plugin database records, player ender-chest storage or
 additional layers. Disk schematics now preserve block entity NBT as well. Game testing is still required.
+
+Commands use the existing double-slash labels and declare typed parameters for Bedrock suggestions. All commands require `we.command` (default: OP). `//redo` is not registered because redo is not implemented; use `//undo` to revert the last operation. Block arguments remain strings to accept both namespaced names and numeric ID/metadata syntax.

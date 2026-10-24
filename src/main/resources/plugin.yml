@@ -2,3 +2,7 @@ name: SWorldEdit
 main: ru.SocialMoods.SWorldEdit.SWorldEdit
 version: 1.1.0-SNAPSHOT
 api: 1.0.0
+permissions:
+  we.command:
+    description: Use SWorldEdit commands
+    default: op

@@ -9,7 +9,6 @@ import ru.SocialMoods.SWorldEdit.utils.WorldUtils;
 public class UndoCommand extends WECommand {
     public UndoCommand() {
         super("/undo", Messages.text("text.cancel.action"));
-        super.setAliases(new String[]{"/redo"});
     }
 
     @Override

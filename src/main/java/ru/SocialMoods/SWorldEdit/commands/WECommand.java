@@ -3,6 +3,8 @@ package ru.SocialMoods.SWorldEdit.commands;
 import ru.SocialMoods.SWorldEdit.i18n.Messages;
 
 import cn.nukkit.command.Command;
+import cn.nukkit.command.data.CommandParameter;
+import cn.nukkit.command.data.CommandParamType;
 import cn.nukkit.command.CommandSender;
 import ru.SocialMoods.SWorldEdit.PlayerData;
 import ru.SocialMoods.SWorldEdit.SWorldEdit;
@@ -11,6 +13,17 @@ import ru.SocialMoods.SWorldEdit.SWorldEdit;
 public abstract class WECommand extends Command {
     public WECommand(String name, String description) {
         super(name, description);
+        setPermission("we.command");
+        commandParameters.clear();
+        CommandParameter[] parameters = switch (name) {
+            case "/help" -> new CommandParameter[]{CommandParameter.newType("page",true,CommandParamType.INT)};
+            case "/set", "/walls" -> new CommandParameter[]{CommandParameter.newType("block",CommandParamType.STRING)};
+            case "/replace" -> new CommandParameter[]{CommandParameter.newType("from",CommandParamType.STRING),CommandParameter.newType("to",CommandParamType.STRING)};
+            case "/cyl", "/hcyl", "/sphere", "/hsphere" -> new CommandParameter[]{CommandParameter.newType("block",CommandParamType.STRING),CommandParameter.newType("radius",CommandParamType.INT)};
+            case "/rotate" -> new CommandParameter[]{CommandParameter.newEnum("axis",new String[]{"y"}),CommandParameter.newType("degrees",CommandParamType.INT)};
+            default -> new CommandParameter[0];
+        };
+        commandParameters.put("default",parameters);
     }
 
     @Override
@@ -22,6 +35,13 @@ public abstract class WECommand extends Command {
 
         if (!player.hasPermission("we.command")) {
             player.sendMessage(Messages.text("text.you.don.t.have.permission.to.use.worldedit"));
+            return false;
+        }
+
+        var parameters = commandParameters.get("default");
+        long required = java.util.Arrays.stream(parameters).filter(parameter -> !parameter.optional).count();
+        if (args.length < required || args.length > parameters.length) {
+            sender.sendMessage(Messages.text("text.command.usage", syntax()));
             return false;
         }
 
@@ -39,6 +59,15 @@ public abstract class WECommand extends Command {
         }
 
         return true;
+    }
+
+    public String syntax() {
+        StringBuilder usage = new StringBuilder("/").append(getName());
+        for (var parameter : commandParameters.get("default")) {
+            String label = parameter.enumData == null ? parameter.name : String.join("|",parameter.enumData.getValues());
+            usage.append(' ').append(parameter.optional ? "[" : "<").append(label).append(parameter.optional ? "]" : ">");
+        }
+        return usage.toString();
     }
 
     public void checkForErrors(cn.nukkit.Player player, PlayerData dat) {
