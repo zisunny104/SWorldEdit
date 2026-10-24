@@ -18,9 +18,12 @@ public final class StackOperation implements Runnable {
     private final int minX, minY, minZ, width, height, length, volume, count, dx, dy, dz;
     private final int batchSize;
     private final List<Block> source = new ArrayList<>();
+    private final java.util.Map<Integer, cn.nukkit.nbt.tag.CompoundTag> tags = new java.util.HashMap<>();
     private final BlocksArray undo = new BlocksArray();
     private final CompletableFuture<Integer> future = new CompletableFuture<>();
-    private int read, written;
+    private int read, prepared, written, paired, refreshed, side;
+    private final BlocksArray before = new BlocksArray();
+    private List<ChestPairs.Link> pairs;
     private boolean registeredUndo;
 
     public StackOperation(PlayerData player, Position first, Position second, int count,
@@ -57,7 +60,7 @@ public final class StackOperation implements Runnable {
     }
 
     public CompletableFuture<Integer> start() {
-        try { schedule.accept(this); } catch (RuntimeException e) { future.completeExceptionally(e); }
+        try { schedule.accept(this); } catch (RuntimeException | LinkageError e) { future.completeExceptionally(e); }
         return future;
     }
 
@@ -69,10 +72,30 @@ public final class StackOperation implements Runnable {
                 int x = read % width;
                 int z = read / width % length;
                 int y = read / width / length;
-                source.add(level.getBlock(new Vector3(minX + x, minY + y, minZ + z)).clone());
+                Vector3 position = new Vector3(minX + x, minY + y, minZ + z);
+                var tag = BlockEntities.capture(level, position);
+                if (tag != null) tags.put(read, tag);
+                source.add(level.getBlock(position).clone());
                 read++;
             }
-            while (read == volume && written < volume * count && budget-- > 0) {
+            if (read == volume && pairs == null) {
+                pairs = ChestPairs.plan(tags, index -> new Vector3(minX + index % width,
+                        minY + index / width / length, minZ + index / width % length), java.util.Map.of());
+            }
+            while (read == volume && prepared < volume * count && budget-- > 0) {
+                int index = prepared % volume, copy = prepared / volume + 1;
+                Vector3 target = new Vector3(coordinate(minX,width,dx,copy,index % width),
+                        coordinate(minY,height,dy,copy,index / width / length),
+                        coordinate(minZ,length,dz,copy,index / width % length));
+                var previous = BlockEntities.capture(level,target);
+                if (previous != null) {
+                    before.blockEntities.put(prepared,previous);
+                    ChestPairs.rememberPeer(level,previous,undo.externalChestPairs);
+                }
+                before.blocks.add(level.getBlock(target).clone());
+                prepared++;
+            }
+            while (prepared == volume * count && written < volume * count && budget-- > 0) {
                 int index = written % volume;
                 int copy = written / volume + 1;
                 Vector3 target = new Vector3(
@@ -83,13 +106,31 @@ public final class StackOperation implements Runnable {
                     player.addUndoBlocks(undo);
                     registeredUndo = true;
                 }
-                undo.blocks.add(level.getBlock(target).clone());
-                level.setBlock(target, source.get(index).clone(), true, false);
+                var previous = before.blockEntities.get(written);
+                if (previous != null) undo.blockEntities.put(undo.blocks.size(), previous);
+                undo.blocks.add(before.blocks.get(written));
+                BlockEntities.place(level, target, source.get(index), tags.get(index));
                 written++;
             }
-            if (written == volume * count) future.complete(written);
+            while (written == volume * count && paired < pairs.size() * count && budget-- > 0) {
+                int copy = paired / pairs.size() + 1;
+                ChestPairs.apply(level, pairs.get(paired % pairs.size()).shifted(
+                        (long)width * dx * copy, (long)height * dy * copy, (long)length * dz * copy));
+                paired++;
+            }
+            while (written == volume * count && paired == pairs.size() * count && refreshed < written && budget-- > 0) {
+                int index = refreshed % volume;
+                int copy = refreshed / volume + 1;
+                Vector3 target = new Vector3(
+                    coordinate(minX, width, dx, copy, index % width),
+                    coordinate(minY, height, dy, copy, index / width / length),
+                    coordinate(minZ, length, dz, copy, index / width % length));
+                Connections.refresh(level, target, side++);
+                if (side == 7) { side = 0; refreshed++; }
+            }
+            if (written == volume * count && paired == pairs.size() * count && refreshed == written) future.complete(written);
             else schedule.accept(this);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException | LinkageError e) {
             future.completeExceptionally(e); // Partial changes remain available to //undo.
         }
     }

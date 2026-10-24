@@ -60,7 +60,7 @@
   "text.cut.cut.area.replace.with.air": "  //cut - 剪下選區（替換為空氣）",
   "text.worldedit.help.page.3.3": "WorldEdit 說明 — 第 3/3 頁：\n",
   "text.copy.copy.selected.area.to.clipboard": "  //copy - 複製選區至剪貼簿\n",
-  "text.paste.paste.from.clipboard": "  //paste - 貼上剪貼簿內容\n",
+  "text.paste.paste.from.clipboard": "  //paste [-a] - 貼上剪貼簿內容\n",
   "text.rotate.axis.degree.rotate.clipboard.content": "  //rotate <axis> <degree> - 旋轉建築\n",
   "text.wand.get.selection.wand.axe": "  //wand - 取得選取工具\n",
   "text.desel.clear.current.selection": "  //desel - 清除選區",
@@ -152,7 +152,7 @@
   "text.failed.to.create.block.2": "無法建立方塊：${0} - ${1}",
   "schematic.save.failed": "無法儲存範本",
   "schematic.load.failed": "無法載入範本",
-  "text.paste.paste.from.clipboard.stack.count.direction.repeat": "  //paste - 貼上剪貼簿內容\n  //stack <count> [direction] - 重複選區\n",
+  "text.paste.paste.from.clipboard.stack.count.direction.repeat": "  //paste [-a] - 貼上剪貼簿內容\n  //stack <count> [direction] - 重複選區\n",
   "text.usage.stack.count.north.south.east.west.up": "用法：//stack <次數> [north|south|east|west|up|down]",
   "text.your.previous.stack.is.still.running": "上一個 stack 操作仍在執行",
   "text.successfully.stacked.blocks": "已重複放置 ${0} 個方塊",
@@ -161,5 +161,6 @@
   "text.repeat.the.selection.in.a.direction": "沿指定方向重複選區",
   "text.right.click.set.position.1": "右鍵：設定位置 #1",
   "text.left.click.set.position.2": "左鍵：設定位置 #2",
-  "text.unknown.or.unsupported.block": "未知或核心不支援的方塊：${0}"
+  "text.unknown.or.unsupported.block": "未知或核心不支援的方塊：${0}",
+  "clipboard.paste.usage": "用法：//paste [-a]（-a 略過空氣）"
 }

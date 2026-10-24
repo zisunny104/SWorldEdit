@@ -27,10 +27,11 @@ public class CopyCommand extends WECommand {
                 return;
             }
 
-            dat.copiedBlocks = new BlocksArray();
+            BlocksArray snapshot = new BlocksArray();
 
-            WorldUtils.copyAsync(sel.getPosOne(), sel.getPosTwo(), new Vector3(p.getX(), p.getY(), p.getZ()), dat.copiedBlocks)
+            WorldUtils.copyAsync(sel.getPosOne(), sel.getPosTwo(), new Vector3(p.getX(), p.getY(), p.getZ()), snapshot)
                     .thenAccept(blocksCopied -> {
+                        dat.copiedBlocks = snapshot;
                         p.sendMessage(Messages.text("text.successfully.copied.blocks.to.clipboard", blocksCopied));
                     })
                     .exceptionally(throwable -> {

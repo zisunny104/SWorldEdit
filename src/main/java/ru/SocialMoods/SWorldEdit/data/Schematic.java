@@ -1,6 +1,10 @@
 package ru.SocialMoods.SWorldEdit.data;
 
 import lombok.Value;
+import cn.nukkit.nbt.tag.CompoundTag;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Collections;
 
 @Value
 public class Schematic {
@@ -9,8 +13,14 @@ public class Schematic {
     short length;
     int[] blocks;
     int[] data;
+    Map<Integer, CompoundTag> blockEntities;
 
     public Schematic(short width, short height, short length, int[] blocks, int[] data) {
+        this(width, height, length, blocks, data, Map.of());
+    }
+
+    public Schematic(short width, short height, short length, int[] blocks, int[] data,
+                     Map<Integer, CompoundTag> blockEntities) {
         int volume = volume(width, height, length);
         if (blocks.length != volume || data.length != volume) {
             throw new IllegalArgumentException("Schematic array lengths do not match dimensions");
@@ -25,6 +35,14 @@ public class Schematic {
         this.length = length;
         this.blocks = blocks;
         this.data = data;
+        Map<Integer, CompoundTag> tags = new HashMap<>();
+        blockEntities.forEach((index, tag) -> {
+            if (index == null || index < 0 || index >= volume || tag == null || blocks[index] == 0 ||
+                    tag.getString("id").isEmpty())
+                throw new IllegalArgumentException("Invalid schematic block entity index or type: " + index);
+            tags.put(index, tag.clone());
+        });
+        this.blockEntities = Collections.unmodifiableMap(tags);
     }
 
     public static int volume(int width, int height, int length) {

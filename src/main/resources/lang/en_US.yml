@@ -60,7 +60,7 @@
   "text.cut.cut.area.replace.with.air": "  //cut - Cut area (replace with air)",
   "text.worldedit.help.page.3.3": "WorldEdit Help - Page 3/3:\n",
   "text.copy.copy.selected.area.to.clipboard": "  //copy - Copy selected area to clipboard\n",
-  "text.paste.paste.from.clipboard": "  //paste - Paste from clipboard\n",
+  "text.paste.paste.from.clipboard": "  //paste [-a] - Paste from clipboard\n",
   "text.rotate.axis.degree.rotate.clipboard.content": "  //rotate <axis> <degree> - Rotate clipboard content\n",
   "text.wand.get.selection.wand.axe": "  //wand - Get selection wand axe\n",
   "text.desel.clear.current.selection": "  //desel - Clear current selection",
@@ -152,7 +152,7 @@
   "text.failed.to.create.block.2": "Failed to create block: ${0} - ${1}",
   "schematic.save.failed": "Failed to save schematic",
   "schematic.load.failed": "Failed to load schematic",
-  "text.paste.paste.from.clipboard.stack.count.direction.repeat": "  //paste - Paste from clipboard\n  //stack <count> [direction] - Repeat selected area\n",
+  "text.paste.paste.from.clipboard.stack.count.direction.repeat": "  //paste [-a] - Paste from clipboard\n  //stack <count> [direction] - Repeat selected area\n",
   "text.usage.stack.count.north.south.east.west.up": "Usage: //stack <count> [north|south|east|west|up|down]",
   "text.your.previous.stack.is.still.running": "Your previous stack is still running",
   "text.successfully.stacked.blocks": "Successfully stacked ${0} blocks",
@@ -161,5 +161,6 @@
   "text.repeat.the.selection.in.a.direction": "Repeat the selection in a direction",
   "text.right.click.set.position.1": "Right click: set position #1",
   "text.left.click.set.position.2": "Left click: set position #2",
-  "text.unknown.or.unsupported.block": "Unknown or unsupported block: ${0}"
+  "text.unknown.or.unsupported.block": "Unknown or unsupported block: ${0}",
+  "clipboard.paste.usage": "Usage: //paste [-a] (-a skips air)"
 }
