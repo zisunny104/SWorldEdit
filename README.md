@@ -60,7 +60,7 @@ Blocks can be specified in multiple formats:
 
 
 ### Stack
-`//stack <count> [north|south|east|west|up|down]` repeats the selection by its full dimensions.
+`//stack <count> [north|south|east|west|up|down] [-a]` repeats the selection by its full dimensions.
 Omit direction to use the dominant axis of your look direction. Air is included.
 The selection and clipboard stay unchanged; `//undo` restores the destination in one step.
 World access is split over server ticks. Configure `stack.max-blocks` and
@@ -100,3 +100,5 @@ This does not copy entities, plugin database records, player ender-chest storage
 additional layers. Disk schematics now preserve block entity NBT as well. Game testing is still required.
 
 Commands use the existing double-slash labels and declare typed parameters for Bedrock suggestions. All commands require `we.command` (default: OP). `//redo` is not registered because redo is not implemented; use `//undo` to revert the last operation. Block arguments remain strings to accept both namespaced names and numeric ID/metadata syntax.
+
+Use `//stack 3 -a` to skip source air while using your viewing direction, or `//stack 3 east -a` for an explicit direction. Skipped cells keep destination blocks/NBT unchanged and are excluded from undo and the changed-block count. Without `-a`, air is copied as before; spacing still uses the full selection dimensions.

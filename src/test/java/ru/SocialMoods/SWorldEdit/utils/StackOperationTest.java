@@ -79,4 +79,28 @@ class StackOperationTest {
         assertArrayEquals(new int[]{1,0,0}, StackCommand.direction(null, new Vector3(.9,0,.2)));
         assertThrows(IllegalArgumentException.class, () -> StackCommand.direction("typo", new Vector3()));
     }
+    @Test void ignoreAirSkipsWritesAndUndoEntriesWhileKeepingSelectionSpacing() {
+        prepare();
+        var result=new StackOperation(player,new Position(0,70,0,level),new Position(1,70,0,level),
+                2,1,0,0,100,1,true,queue::add).start();
+        while(!queue.isEmpty())queue.remove().run();
+        assertEquals(2,result.join());assertEquals(List.of("2:70:0=792","4:70:0=792"),writes);
+        assertEquals(2,player.undoSteps.getFirst().blocks.size());
+    }
+    @Test void allAirWithIgnoreAirCreatesNoUndoAndReportsZeroChanges() {
+        prepare();when(level.getBlock(any(Vector3.class))).thenAnswer(call->block(0));
+        var result=new StackOperation(player,new Position(0,70,0,level),new Position(1,70,0,level),
+                2,1,0,0,100,1,true,queue::add).start();
+        while(!queue.isEmpty())queue.remove().run();
+        assertEquals(0,result.join());assertTrue(writes.isEmpty());assertTrue(player.undoSteps.isEmpty());
+    }
+    @Test void ignoreAirWorksWithOrWithoutExplicitDirection() {
+        var implicit=StackCommand.parse(new String[]{"3","-a"});
+        assertEquals(3,implicit.count());assertNull(implicit.direction());assertTrue(implicit.skipAir());
+        var explicit=StackCommand.parse(new String[]{"3","east","-a"});
+        assertEquals("east",explicit.direction());assertTrue(explicit.skipAir());
+        assertFalse(StackCommand.parse(new String[]{"3"}).skipAir());
+        assertThrows(IllegalArgumentException.class,()->StackCommand.parse(new String[]{"3","-a","east"}));
+        assertThrows(IllegalArgumentException.class,()->StackCommand.parse(new String[]{"3","east","-x"}));
+    }
 }

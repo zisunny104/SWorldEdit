@@ -220,4 +220,15 @@ class ClipboardOperationTest {
             assertEquals(13,tiles.get("5,70,0").namedTag.getList("Items",cn.nukkit.nbt.tag.CompoundTag.class).get(0).getByte("Count"));
         }
     }
+    @Test void stackIgnoreAirAndUndoLeaveSkippedContainersUntouched() {
+        world.put("0,70,0",block(1,0,70,0));
+        world.put("2,70,0",block(4,2,70,0));world.put("3,70,0",block(54,3,70,0));
+        world.put("4,70,0",block(5,4,70,0));world.put("5,70,0",block(63,5,70,0));
+        var result=new StackOperation(player,new Position(0,70,0,level),new Position(1,70,0,level),
+                2,1,0,0,100,1,true,queue::add).start();finish();assertEquals(2,result.join());
+        assertEquals(54,world.get("3,70,0").getId());assertEquals(63,world.get("5,70,0").getId());
+        var undo=ClipboardOperation.undo(player,0,1,queue::add);finish();assertEquals(2,undo.join());
+        assertEquals(4,world.get("2,70,0").getId());assertEquals(5,world.get("4,70,0").getId());
+        verify(level,never()).getBlockEntity(argThat((Vector3 v)->v!=null && (v.getFloorX()==3||v.getFloorX()==5)));
+    }
 }

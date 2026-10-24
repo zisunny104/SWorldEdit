@@ -19,7 +19,12 @@ public class StackCommand extends WECommand {
         this.commandParameters.put("default", new cn.nukkit.command.data.CommandParameter[]{
             cn.nukkit.command.data.CommandParameter.newType("count", cn.nukkit.command.data.CommandParamType.INT),
             cn.nukkit.command.data.CommandParameter.newEnum("direction", true,
-                new String[]{"north", "south", "east", "west", "up", "down"})
+                new String[]{"north", "south", "east", "west", "up", "down"}),
+            cn.nukkit.command.data.CommandParameter.newEnum("ignoreAir", true, new String[]{"-a"})
+        });
+        this.commandParameters.put("ignore-air", new cn.nukkit.command.data.CommandParameter[]{
+            cn.nukkit.command.data.CommandParameter.newType("count", cn.nukkit.command.data.CommandParamType.INT),
+            cn.nukkit.command.data.CommandParameter.newEnum("ignoreAir", new String[]{"-a"})
         });
     }
 
@@ -41,8 +46,19 @@ public class StackCommand extends WECommand {
         };
     }
 
+    public record Arguments(int count, String direction, boolean skipAir) { }
+    public static Arguments parse(String[] args) {
+        if(args.length < 1 || args.length > 3) throw new IllegalArgumentException("Invalid stack arguments");
+        boolean skipAir = args[args.length-1].equals("-a");
+        int positional = args.length - (skipAir ? 1 : 0);
+        if(positional < 1 || positional > 2) throw new IllegalArgumentException("Invalid stack arguments");
+        String direction = positional == 2 ? args[1] : null;
+        direction(direction,new Vector3()); // Reject unknown flags/directions before starting work.
+        return new Arguments(Integer.parseInt(args[0]),direction,skipAir);
+    }
+
     @Override public void execute(Player p, PlayerData data, String[] args) {
-        if (args.length < 1 || args.length > 2) {
+        if (args.length < 1 || args.length > 3) {
             p.sendMessage(Messages.text("text.usage.stack.count.north.south.east.west.up"));
             return;
         }
@@ -53,13 +69,14 @@ public class StackCommand extends WECommand {
         String key = p.getName().toLowerCase(Locale.ROOT);
         if (busy.contains(key)) { p.sendMessage(Messages.text("text.your.previous.stack.is.still.running")); return; }
         try {
-            int count = Integer.parseInt(args[0]);
-            int[] direction = direction(args.length == 2 ? args[1] : null, p.getDirectionVector());
+            Arguments parsed = parse(args);
+            int count = parsed.count();
+            int[] direction = direction(parsed.direction(), p.getDirectionVector());
             SWorldEdit plugin = SWorldEdit.get();
             StackOperation operation = new StackOperation(data, data.getSelection().getPosOne(),
                 data.getSelection().getPosTwo(), count, direction[0], direction[1], direction[2],
                 plugin.getConfig().getInt("stack.max-blocks", 100000),
-                plugin.getConfig().getInt("stack.blocks-per-tick", 512),
+                plugin.getConfig().getInt("stack.blocks-per-tick", 512), parsed.skipAir(),
                 task -> plugin.getServer().getScheduler().scheduleDelayedTask(plugin, task, 1));
             busy.add(key);
             operation.start().whenComplete((changed, error) -> {

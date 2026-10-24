@@ -17,6 +17,8 @@ public final class StackOperation implements Runnable {
     private final Consumer<Runnable> schedule;
     private final int minX, minY, minZ, width, height, length, volume, count, dx, dy, dz;
     private final int batchSize;
+    private final boolean skipAir;
+    private int changed;
     private final List<Block> source = new ArrayList<>();
     private final java.util.Map<Integer, cn.nukkit.nbt.tag.CompoundTag> tags = new java.util.HashMap<>();
     private final BlocksArray undo = new BlocksArray();
@@ -28,6 +30,12 @@ public final class StackOperation implements Runnable {
 
     public StackOperation(PlayerData player, Position first, Position second, int count,
                           int dx, int dy, int dz, int maxBlocks, int batchSize, Consumer<Runnable> schedule) {
+        this(player,first,second,count,dx,dy,dz,maxBlocks,batchSize,false,schedule);
+    }
+
+    public StackOperation(PlayerData player, Position first, Position second, int count,
+                          int dx, int dy, int dz, int maxBlocks, int batchSize, boolean skipAir, Consumer<Runnable> schedule) {
+        this.skipAir = skipAir;
         if (first.level == null || first.level != second.level) throw new IllegalArgumentException("Select two positions in the same world");
         if (count < 1 || batchSize < 1 || Math.abs(dx) + Math.abs(dy) + Math.abs(dz) != 1)
             throw new IllegalArgumentException("Invalid stack count or direction");
@@ -84,6 +92,7 @@ public final class StackOperation implements Runnable {
             }
             while (read == volume && prepared < volume * count && budget-- > 0) {
                 int index = prepared % volume, copy = prepared / volume + 1;
+                if (skipAir && source.get(index).getId() == 0) { before.blocks.add(null); prepared++; continue; }
                 Vector3 target = new Vector3(coordinate(minX,width,dx,copy,index % width),
                         coordinate(minY,height,dy,copy,index / width / length),
                         coordinate(minZ,length,dz,copy,index / width % length));
@@ -98,6 +107,7 @@ public final class StackOperation implements Runnable {
             while (prepared == volume * count && written < volume * count && budget-- > 0) {
                 int index = written % volume;
                 int copy = written / volume + 1;
+                if (skipAir && source.get(index).getId() == 0) { written++; continue; }
                 Vector3 target = new Vector3(
                     coordinate(minX, width, dx, copy, index % width),
                     coordinate(minY, height, dy, copy, index / width / length),
@@ -110,7 +120,7 @@ public final class StackOperation implements Runnable {
                 if (previous != null) undo.blockEntities.put(undo.blocks.size(), previous);
                 undo.blocks.add(before.blocks.get(written));
                 BlockEntities.place(level, target, source.get(index), tags.get(index));
-                written++;
+                written++; changed++;
             }
             while (written == volume * count && paired < pairs.size() * count && budget-- > 0) {
                 int copy = paired / pairs.size() + 1;
@@ -121,6 +131,7 @@ public final class StackOperation implements Runnable {
             while (written == volume * count && paired == pairs.size() * count && refreshed < written && budget-- > 0) {
                 int index = refreshed % volume;
                 int copy = refreshed / volume + 1;
+                if (skipAir && source.get(index).getId() == 0) { refreshed++; side = 0; continue; }
                 Vector3 target = new Vector3(
                     coordinate(minX, width, dx, copy, index % width),
                     coordinate(minY, height, dy, copy, index / width / length),
@@ -128,7 +139,7 @@ public final class StackOperation implements Runnable {
                 Connections.refresh(level, target, side++);
                 if (side == 7) { side = 0; refreshed++; }
             }
-            if (written == volume * count && paired == pairs.size() * count && refreshed == written) future.complete(written);
+            if (written == volume * count && paired == pairs.size() * count && refreshed == written) future.complete(changed);
             else schedule.accept(this);
         } catch (RuntimeException | LinkageError e) {
             future.completeExceptionally(e); // Partial changes remain available to //undo.
