@@ -66,6 +66,14 @@ The selection and clipboard stay unchanged; `//undo` restores the destination in
 World access is split over server ticks. Configure `stack.max-blocks` and
 `stack.blocks-per-tick` in `config.yml`. Stack copies the primary block layer and supported block entity NBT, without entities or additional layers.
 
+### Languages
+Set `language: zh_TW` (or `en_US`) in `config.yml` and restart the plugin.
+Bundled catalogues are copied to `lang/` without overwriting existing files.
+Edit those YAML files to customize messages, or add `lang/<locale>.yml` for another
+language. Missing entries fall back to English. `${0}`, `${1}`, etc. are literal
+replacement arguments; preserve them when translating. Tool identifiers and block
+names supplied by the core are not translated by the plugin.
+
 ### Clipboard air and connections
 Copy captures the entire selected primary block layer, including air. `//paste` includes
 air; `//paste -a` skips air. A clipboard remains reusable after pasting. Copy publishes

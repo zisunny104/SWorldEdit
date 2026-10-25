@@ -1,11 +1,13 @@
 package ru.SocialMoods.SWorldEdit.commands;
 
+import ru.SocialMoods.SWorldEdit.i18n.Messages;
+
 import ru.SocialMoods.SWorldEdit.PlayerData;
 
 @SuppressWarnings("unused")
 public class PosTwoCommand extends WECommand {
     public PosTwoCommand() {
-        super("/pos2", "Set second position");
+        super("/pos2", Messages.text("text.set.second.position"));
         super.setAliases(new String[]{"/2"});
     }
 
@@ -13,21 +15,21 @@ public class PosTwoCommand extends WECommand {
     public void execute(cn.nukkit.Player player, PlayerData dat, String[] args) {
         try {
             if (dat == null) {
-                player.sendMessage("Player data not found");
+                player.sendMessage(Messages.text("text.player.data.not.found"));
                 return;
             }
 
             if (dat.getSelection() == null) {
-                player.sendMessage("Selection data not found");
+                player.sendMessage(Messages.text("text.selection.data.not.found"));
                 return;
             }
 
             dat.getSelection().setPosTwo(player.getPosition().clone());
             ru.SocialMoods.SWorldEdit.preview.Previews.selection(player, dat.getSelection());
-            player.sendMessage(String.format("Second position set to (%1$s, %2$s, %3$s)", player.getFloorX(), player.getFloorY(), player.getFloorZ()));
+            player.sendMessage(Messages.text("text.second.position.set.to", player.getFloorX(), player.getFloorY(), player.getFloorZ()));
 
         } catch (Exception e) {
-            player.sendMessage(String.format("Error setting second position: %1$s", e.getMessage()));
+            player.sendMessage(Messages.text("text.error.setting.second.position", e.getMessage()));
         }
     }
 }

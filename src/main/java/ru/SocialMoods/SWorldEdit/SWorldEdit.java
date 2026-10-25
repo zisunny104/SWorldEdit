@@ -1,5 +1,7 @@
 package ru.SocialMoods.SWorldEdit;
 
+import ru.SocialMoods.SWorldEdit.i18n.Messages;
+
 import cn.nukkit.plugin.PluginBase;
 import java.util.HashMap;
 import java.util.Map;
@@ -26,7 +28,8 @@ public class SWorldEdit extends PluginBase {
     public void onEnable() {
         instance = this;
         saveDefaultConfig();
-        
+        Messages.configure(getDataFolder().toPath(), getConfig().getString("language", "en_US"),
+                message -> getLogger().warning(message));
 
         try {
             boundingBoxes = new ru.SocialMoods.SWorldEdit.preview.BoundingBoxes(this);
@@ -37,10 +40,10 @@ public class SWorldEdit extends PluginBase {
 
             registerCommands();
 
-            this.getLogger().info("SWorldEdit has been enabled successfully");
+            this.getLogger().info(Messages.text("text.sworldedit.has.been.enabled.successfully"));
 
         } catch (Exception e) {
-            this.getLogger().error(String.format("Error enabling SWorldEdit: %1$s", e));
+            this.getLogger().error(Messages.text("text.error.enabling.sworldedit", e));
         }
     }
 
@@ -48,9 +51,9 @@ public class SWorldEdit extends PluginBase {
     public void onDisable() {
         try {
             if (boundingBoxes != null) boundingBoxes.close();
-            this.getLogger().info("SWorldEdit has been disabled");
+            this.getLogger().info(Messages.text("text.sworldedit.has.been.disabled"));
         } catch (Exception e) {
-            this.getLogger().error(String.format("Error disabling SWorldEdit: %1$s", e));
+            this.getLogger().error(Messages.text("text.error.disabling.sworldedit", e));
         }
     }
 
@@ -79,7 +82,7 @@ public class SWorldEdit extends PluginBase {
                 data = new PlayerData(player);
                 this.players.put(playerName, data);
             } catch (Exception e) {
-                this.getLogger().error(String.format("Error creating WEPlayer for %1$s: %2$s", playerName, e.getMessage()));
+                this.getLogger().error(Messages.text("text.error.creating.weplayer.for", playerName, e.getMessage()));
                 return null;
             }
         }

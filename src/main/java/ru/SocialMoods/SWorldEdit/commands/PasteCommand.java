@@ -1,5 +1,7 @@
 package ru.SocialMoods.SWorldEdit.commands;
 
+import ru.SocialMoods.SWorldEdit.i18n.Messages;
+
 import cn.nukkit.level.Position;
 import ru.SocialMoods.SWorldEdit.PlayerData;
 import ru.SocialMoods.SWorldEdit.utils.BlocksArray;
@@ -8,7 +10,7 @@ import ru.SocialMoods.SWorldEdit.utils.WorldUtils;
 @SuppressWarnings("unused")
 public class PasteCommand extends WECommand {
     public PasteCommand() {
-        super("/paste", "Paste area");
+        super("/paste", Messages.text("text.paste.area"));
         this.commandParameters.clear();
         this.commandParameters.put("default", new cn.nukkit.command.data.CommandParameter[]{
             cn.nukkit.command.data.CommandParameter.newEnum("ignoreAir", true, new String[]{"-a"})
@@ -19,18 +21,18 @@ public class PasteCommand extends WECommand {
     public void execute(cn.nukkit.Player p, PlayerData dat, String[] args) {
         try {
             if (dat == null) {
-                p.sendMessage("Player data not found");
+                p.sendMessage(Messages.text("text.player.data.not.found"));
                 return;
             }
 
             if (args.length > 1 || (args.length == 1 && !args[0].equals("-a"))) {
-                p.sendMessage("Usage: //paste [-a] (-a skips air)");
+                p.sendMessage(Messages.text("clipboard.paste.usage"));
                 return;
             }
             boolean skipAir = args.length == 1;
             BlocksArray copy = dat.copiedBlocks;
             if (copy == null || copy.blocks.isEmpty()) {
-                p.sendMessage("Clipboard is empty. Use //copy first to copy blocks");
+                p.sendMessage(Messages.text("text.clipboard.is.empty.use.copy.first.to.copy"));
                 return;
             }
 
@@ -38,15 +40,15 @@ public class PasteCommand extends WECommand {
 
             WorldUtils.pasteAsync(dat, pastePosition, copy, skipAir)
                     .thenAccept(blocksPasted -> {
-                        p.sendMessage(String.format("Successfully pasted %1$s blocks", blocksPasted));
+                        p.sendMessage(Messages.text("text.successfully.pasted.blocks", blocksPasted));
                     })
                     .exceptionally(throwable -> {
-                        p.sendMessage(String.format("Error while pasting: %1$s", throwable.getMessage()));
+                        p.sendMessage(Messages.text("text.error.while.pasting", throwable.getMessage()));
                         return null;
                     });
 
         } catch (Exception e) {
-            p.sendMessage(String.format("Error executing paste command: %1$s", e.getMessage()));
+            p.sendMessage(Messages.text("text.error.executing.paste.command", e.getMessage()));
         }
     }
 }

@@ -2,6 +2,8 @@ package ru.SocialMoods.SWorldEdit.utils;
 
 import cn.nukkit.block.Block;
 import java.util.Map;
+import ru.SocialMoods.SWorldEdit.i18n.Messages;
+
 /** Read-only query. A suggested input is returned only after parser round-trip validation. */
 public final class BlockInfo {
     private BlockInfo() { }
@@ -41,12 +43,12 @@ public final class BlockInfo {
     public static String describe(Block block) {
         String identifier=identifier(block), input=input(block,identifier);
         var entity=block.getLevel().getBlockEntity(block);
-        String nbt=entity==null ? "none" :
+        String nbt=entity==null ? Messages.text("tool.info.no-nbt") :
                 entity.namedTag==null ? entity.getClass().getSimpleName() : entity.namedTag.getString("id");
-        return String.format("World: %1$s | Position: %2$s, %3$s, %4$s",block.getLevel().getName(),block.getFloorX(),block.getFloorY(),block.getFloorZ())+"\n"+
-                String.format("Block: %1$s | Identifier: %2$s | ID/data: %3$s:%4$s",block.getName(),identifier==null ? "unavailable" : identifier,block.getId(),block.getDamage())+"\n"+
-                String.format("States: %1$s | Emitted light: %2$s",states(block),block.getLightLevel())+"\n"+
-                String.format("Verified block input: %1$s",input==null ? "unavailable" : input)+"\n"+
-                String.format("Block entity: %1$s (NBT is not included in block input)",nbt);
+        return Messages.text("tool.info.position",block.getLevel().getName(),block.getFloorX(),block.getFloorY(),block.getFloorZ())+"\n"+
+                Messages.text("tool.info.block",block.getName(),identifier==null ? Messages.text("tool.info.unavailable") : identifier,block.getId(),block.getDamage())+"\n"+
+                Messages.text("tool.info.state",states(block),block.getLightLevel())+"\n"+
+                Messages.text("tool.info.input",input==null ? Messages.text("tool.info.unavailable") : input)+"\n"+
+                Messages.text("tool.info.nbt",nbt);
     }
 }

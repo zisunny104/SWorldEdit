@@ -1,5 +1,7 @@
 package ru.SocialMoods.SWorldEdit.commands;
 
+import ru.SocialMoods.SWorldEdit.i18n.Messages;
+
 import cn.nukkit.math.Vector3;
 import lombok.extern.slf4j.Slf4j;
 import ru.SocialMoods.SWorldEdit.PlayerData;
@@ -11,7 +13,7 @@ import ru.SocialMoods.SWorldEdit.utils.WorldUtils;
 @Slf4j
 public class CopyCommand extends WECommand {
     public CopyCommand() {
-        super("/copy", "Copy area to clipboard");
+        super("/copy", Messages.text("text.copy.area.to.clipboard"));
     }
 
     @Override
@@ -21,7 +23,7 @@ public class CopyCommand extends WECommand {
             Selection sel = dat.getSelection();
 
             if (sel == null || sel.getPosOne() == null || sel.getPosTwo() == null) {
-                p.sendMessage("Please select area first using //pos1 and //pos2");
+                p.sendMessage(Messages.text("text.please.select.area.first.using.pos1.and.pos2"));
                 return;
             }
 
@@ -30,15 +32,15 @@ public class CopyCommand extends WECommand {
             WorldUtils.copyAsync(sel.getPosOne(), sel.getPosTwo(), new Vector3(p.getX(), p.getY(), p.getZ()), snapshot)
                     .thenAccept(blocksCopied -> {
                         dat.copiedBlocks = snapshot;
-                        p.sendMessage(String.format("Successfully copied %1$s blocks to clipboard", blocksCopied));
+                        p.sendMessage(Messages.text("text.successfully.copied.blocks.to.clipboard", blocksCopied));
                     })
                     .exceptionally(throwable -> {
-                        p.sendMessage(String.format("Error while copying: %1$s", throwable.getMessage()));
+                        p.sendMessage(Messages.text("text.error.while.copying", throwable.getMessage()));
                         return null;
                     });
 
         } catch (Exception e) {
-            p.sendMessage(String.format("Error executing copy command: %1$s", e.getMessage()));
+            p.sendMessage(Messages.text("text.error.executing.copy.command", e.getMessage()));
         }
     }
 }

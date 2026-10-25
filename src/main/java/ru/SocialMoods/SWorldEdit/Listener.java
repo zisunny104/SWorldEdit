@@ -1,5 +1,7 @@
 package ru.SocialMoods.SWorldEdit;
 
+import ru.SocialMoods.SWorldEdit.i18n.Messages;
+
 import cn.nukkit.block.Block;
 import ru.SocialMoods.SWorldEdit.preview.Previews;
 import ru.SocialMoods.SWorldEdit.utils.ToolBindings;
@@ -148,13 +150,13 @@ public class Listener implements cn.nukkit.event.Listener {
                     if (samePosition(data.getSelection().getPosTwo(), block)) return;
                     data.getSelection().setPosTwo(block.getLocation().clone());
                     Previews.selection(player,data.getSelection());
-                    player.sendMessage(String.format("Selected second position at %1$s, %2$s, %3$s", block.getFloorX(), block.getFloorY(), block.getFloorZ()));
+                    player.sendMessage(Messages.text("text.selected.second.position.at", block.getFloorX(), block.getFloorY(), block.getFloorZ()));
                     break;
                 case RIGHT_CLICK_BLOCK:
                     if (samePosition(data.getSelection().getPosOne(), block)) return;
                     data.getSelection().setPosOne(block.getLocation().clone());
                     Previews.selection(player,data.getSelection());
-                    player.sendMessage(String.format("Selected first position at %1$s, %2$s, %3$s", block.getFloorX(), block.getFloorY(), block.getFloorZ()));
+                    player.sendMessage(Messages.text("text.selected.first.position.at", block.getFloorX(), block.getFloorY(), block.getFloorZ()));
                     break;
             }
         } catch (Exception e) {

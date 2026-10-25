@@ -1,5 +1,7 @@
 package ru.SocialMoods.SWorldEdit.commands.geometry;
 
+import ru.SocialMoods.SWorldEdit.i18n.Messages;
+
 import cn.nukkit.block.Block;
 import cn.nukkit.level.Position;
 import ru.SocialMoods.SWorldEdit.PlayerData;
@@ -10,26 +12,26 @@ import ru.SocialMoods.SWorldEdit.utils.WorldUtils;
 @SuppressWarnings("unused")
 public class CylCommand extends WECommand {
     public CylCommand() {
-        super("/cyl", "Make cylinder");
+        super("/cyl", Messages.text("text.make.cylinder"));
     }
 
     @Override
     public void execute(cn.nukkit.Player p, PlayerData dat, String[] args) {
         try {
             if (dat == null) {
-                p.sendMessage("Player data not found");
+                p.sendMessage(Messages.text("text.player.data.not.found"));
                 return;
             }
 
             if (args.length != 2) {
-                p.sendMessage("Usage: //cyl <block_id>[:data] <radius>");
-                p.sendMessage("Example: //cyl 1 5, //cyl stone 3");
+                p.sendMessage(Messages.text("text.usage.cyl.block.id.data.radius"));
+                p.sendMessage(Messages.text("text.example.cyl.1.5.cyl.stone.3"));
                 return;
             }
 
             Block block = Utils.fromString(args[0], p);
             if (block == null) {
-                p.sendMessage(String.format("Block '%1$s' doesn't exist or is invalid", args[0]));
+                p.sendMessage(Messages.text("text.block.doesn.t.exist.or.is.invalid", args[0]));
                 return;
             }
 
@@ -37,15 +39,15 @@ public class CylCommand extends WECommand {
             try {
                 radius = Integer.parseInt(args[1]);
                 if (radius <= 0) {
-                    p.sendMessage("Radius must be a positive number");
+                    p.sendMessage(Messages.text("text.radius.must.be.a.positive.number"));
                     return;
                 }
                 if (radius > 100) {
-                    p.sendMessage("Radius is too large (maximum 100)");
+                    p.sendMessage(Messages.text("text.radius.is.too.large.maximum.100"));
                     return;
                 }
             } catch (NumberFormatException e) {
-                p.sendMessage("Invalid radius. Please use a number");
+                p.sendMessage(Messages.text("text.invalid.radius.please.use.a.number"));
                 return;
             }
 
@@ -53,15 +55,15 @@ public class CylCommand extends WECommand {
 
             WorldUtils.cylAsync(dat, center, radius, block)
                     .thenAccept(blocksChanged -> {
-                        p.sendMessage(String.format("Successfully created cylinder with %1$s blocks", blocksChanged));
+                        p.sendMessage(Messages.text("text.successfully.created.cylinder.with.blocks", blocksChanged));
                     })
                     .exceptionally(throwable -> {
-                        p.sendMessage(String.format("Error while creating cylinder: %1$s", throwable.getMessage()));
+                        p.sendMessage(Messages.text("text.error.while.creating.cylinder", throwable.getMessage()));
                         return null;
                     });
 
         } catch (Exception e) {
-            p.sendMessage(String.format("Error executing cylinder command: %1$s", e.getMessage()));
+            p.sendMessage(Messages.text("text.error.executing.cylinder.command", e.getMessage()));
         }
     }
 }

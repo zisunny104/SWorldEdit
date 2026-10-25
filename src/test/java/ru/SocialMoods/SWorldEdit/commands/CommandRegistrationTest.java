@@ -59,7 +59,7 @@ class CommandRegistrationTest {
     @Test void noArgumentCommandsRejectUnexpectedArgumentsBeforeStartingWork() {
         Player allowed=mock(Player.class);when(allowed.hasPermission("we.command")).thenReturn(true);
         assertFalse(new CopyCommand().execute(allowed,"/copy",new String[]{"unexpected"}));
-        verify(allowed).sendMessage(String.format("Usage: %1$s","//copy"));
+        verify(allowed).sendMessage(ru.SocialMoods.SWorldEdit.i18n.Messages.text("text.command.usage","//copy"));
     }
     @Test void bedrockCommandMetadataCanBeGeneratedAndEncoded() {
         Player player=mock(Player.class);Server server=mock(Server.class);

@@ -1,5 +1,7 @@
 package ru.SocialMoods.SWorldEdit.commands.geometry;
 
+import ru.SocialMoods.SWorldEdit.i18n.Messages;
+
 import cn.nukkit.block.Block;
 import cn.nukkit.level.Position;
 import ru.SocialMoods.SWorldEdit.PlayerData;
@@ -10,26 +12,26 @@ import ru.SocialMoods.SWorldEdit.utils.WorldUtils;
 @SuppressWarnings("unused")
 public class HSphereCommand extends WECommand {
     public HSphereCommand() {
-        super("/hsphere", "Make vertical sphere");
+        super("/hsphere", Messages.text("text.make.vertical.sphere"));
     }
 
     @Override
     public void execute(cn.nukkit.Player p, PlayerData dat, String[] args) {
         try {
             if (dat == null) {
-                p.sendMessage("Player data not found");
+                p.sendMessage(Messages.text("text.player.data.not.found"));
                 return;
             }
 
             if (args.length != 2) {
-                p.sendMessage("Usage: //hsphere <block_id>[:data] <radius>");
-                p.sendMessage("Example: //hsphere 1 5, //hsphere stone 3");
+                p.sendMessage(Messages.text("text.usage.hsphere.block.id.data.radius"));
+                p.sendMessage(Messages.text("text.example.hsphere.1.5.hsphere.stone.3"));
                 return;
             }
 
             Block block = Utils.fromString(args[0], p);
             if (block == null) {
-                p.sendMessage(String.format("Block '%1$s' doesn't exist or is invalid", args[0]));
+                p.sendMessage(Messages.text("text.block.doesn.t.exist.or.is.invalid", args[0]));
                 return;
             }
 
@@ -37,15 +39,15 @@ public class HSphereCommand extends WECommand {
             try {
                 radius = Integer.parseInt(args[1]);
                 if (radius <= 0) {
-                    p.sendMessage("Radius must be a positive number");
+                    p.sendMessage(Messages.text("text.radius.must.be.a.positive.number"));
                     return;
                 }
                 if (radius > 50) {
-                    p.sendMessage("Radius is too large (maximum 50)");
+                    p.sendMessage(Messages.text("text.radius.is.too.large.maximum.50"));
                     return;
                 }
             } catch (NumberFormatException e) {
-                p.sendMessage("Invalid radius. Please use a number");
+                p.sendMessage(Messages.text("text.invalid.radius.please.use.a.number"));
                 return;
             }
 
@@ -53,15 +55,15 @@ public class HSphereCommand extends WECommand {
 
             WorldUtils.hsphereAsync(dat, center, radius, block)
                     .thenAccept(blocksChanged -> {
-                        p.sendMessage(String.format("Successfully created hollow sphere with %1$s blocks", blocksChanged));
+                        p.sendMessage(Messages.text("text.successfully.created.hollow.sphere.with.blocks", blocksChanged));
                     })
                     .exceptionally(throwable -> {
-                        p.sendMessage(String.format("Error while creating hollow sphere: %1$s", throwable.getMessage()));
+                        p.sendMessage(Messages.text("text.error.while.creating.hollow.sphere", throwable.getMessage()));
                         return null;
                     });
 
         } catch (Exception e) {
-            p.sendMessage(String.format("Error executing hollow sphere command: %1$s", e.getMessage()));
+            p.sendMessage(Messages.text("text.error.executing.hollow.sphere.command", e.getMessage()));
         }
     }
 }

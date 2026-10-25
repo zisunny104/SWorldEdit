@@ -1,5 +1,7 @@
 package ru.SocialMoods.SWorldEdit.utils;
 
+import ru.SocialMoods.SWorldEdit.i18n.Messages;
+
 import cn.nukkit.Player;
 import cn.nukkit.block.Block;
 import cn.nukkit.block.BlockID;
@@ -24,7 +26,7 @@ public class Utils {
     public static Block fromString(String input, Player player) {
         Block result = resolve(input);
         if (result == null && player != null) {
-            player.sendMessage(String.format("Unknown or unsupported block: %1$s", input));
+            player.sendMessage(Messages.text("text.unknown.or.unsupported.block", input));
         }
         return result;
     }
