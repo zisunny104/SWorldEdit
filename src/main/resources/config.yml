@@ -7,3 +7,10 @@ language: en_US
 clipboard:
   max-blocks: 100000
   blocks-per-tick: 512
+
+# Embedded BoundingBoxAPI renderer; no additional plugin is required.
+bounding-boxes:
+  selection-enabled: true
+  selection-seconds: 0 # 0 keeps the selection box until cleared
+  paste-enabled: true
+  paste-seconds: 10 # 0 disables the temporary paste box

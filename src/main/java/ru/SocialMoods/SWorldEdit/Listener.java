@@ -3,6 +3,7 @@ package ru.SocialMoods.SWorldEdit;
 import ru.SocialMoods.SWorldEdit.i18n.Messages;
 
 import cn.nukkit.block.Block;
+import ru.SocialMoods.SWorldEdit.preview.Previews;
 import ru.SocialMoods.SWorldEdit.utils.ToolBindings;
 import ru.SocialMoods.SWorldEdit.utils.BlockInfo;
 import cn.nukkit.blockentity.BlockEntity;
@@ -86,6 +87,7 @@ public class Listener implements cn.nukkit.event.Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onBlockBreak(BlockBreakEvent event) {
+        if (Previews.isMarker(event.getPlayer(),event.getBlock())) { event.setCancelled(true);return; }
         if (event.getPlayer().hasPermission("we.command")) {
             boolean wand = isWandItem(event.getItem());
             ToolBindings.Mode mode = wand ? ToolBindings.Mode.SELECTION : ToolBindings.Mode.NONE;
@@ -103,6 +105,7 @@ public class Listener implements cn.nukkit.event.Listener {
     @EventHandler(priority = EventPriority.LOWEST)
     public void onInteract(PlayerInteractEvent event) {
         cn.nukkit.Player player = event.getPlayer();
+        if (Previews.isMarker(player,event.getBlock())) { event.setCancelled(true);return; }
         if (!player.hasPermission("we.command")) {
             return;
         }
@@ -146,11 +149,13 @@ public class Listener implements cn.nukkit.event.Listener {
                 case LEFT_CLICK_BLOCK:
                     if (samePosition(data.getSelection().getPosTwo(), block)) return;
                     data.getSelection().setPosTwo(block.getLocation().clone());
+                    Previews.selection(player,data.getSelection());
                     player.sendMessage(Messages.text("text.selected.second.position.at", block.getFloorX(), block.getFloorY(), block.getFloorZ()));
                     break;
                 case RIGHT_CLICK_BLOCK:
                     if (samePosition(data.getSelection().getPosOne(), block)) return;
                     data.getSelection().setPosOne(block.getLocation().clone());
+                    Previews.selection(player,data.getSelection());
                     player.sendMessage(Messages.text("text.selected.first.position.at", block.getFloorX(), block.getFloorY(), block.getFloorZ()));
                     break;
             }
@@ -162,8 +167,18 @@ public class Listener implements cn.nukkit.event.Listener {
     @EventHandler
     public void onQuit(cn.nukkit.event.player.PlayerQuitEvent event) {
         pendingStarts.remove(event.getPlayer());
+        Previews.clear(event.getPlayer());
         PlayerData data = playerData.apply(event.getPlayer());
         if(data != null && data.getTools() != null) data.getTools().clear();
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onTeleport(cn.nukkit.event.player.PlayerTeleportEvent event) {
+        if(event.getFrom().getLevel()!=event.getTo().getLevel()) Previews.clear(event.getPlayer());
+    }
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onLevelChange(cn.nukkit.event.entity.EntityLevelChangeEvent event) {
+        if(event.getEntity() instanceof cn.nukkit.Player player && event.getOrigin()!=event.getTarget()) Previews.clear(player);
     }
 
     private boolean isWandItem(Item item) {

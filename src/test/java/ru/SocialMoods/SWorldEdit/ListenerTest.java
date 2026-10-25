@@ -60,7 +60,7 @@ class ListenerTest {
         when(later.getItem()).thenReturn(wand);
         listener.onBlockBreak(later);
         verify(later).setCancelled(true);
-        verify(later, never()).getBlock();
+
         assertSame(selected, selection.getPosTwo());
         verify(player, times(1)).sendMessage(anyString());
     }

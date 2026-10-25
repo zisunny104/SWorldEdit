@@ -105,3 +105,8 @@ Use `//stack 3 -a` to skip source air while using your viewing direction, or `//
 
 ### Block query tool
 Hold an item and run `/tool info`, then right-click a block to inspect its coordinates, type, available states, emitted light, block-entity presence and parser-verified block input. `/tool none` disables the held item type; `//tool` is an alias. Bindings are per-player and session-only, apply to that item type regardless of durability, and do not alter items or blocks. Binding the wand switches it to query mode; `//wand` restores selection mode. NBT contents are not dumped or included in the suggested block input. Selection visualization is not part of this feature.
+
+### Selection and paste bounding boxes
+The renderer from [BoundingBoxAPI](https://github.com/zisunny104/BoundingBoxAPI) is embedded internally; no separate plugin is needed. It sends client-only structure-block previews to the selecting player without world writes. Both wand and position commands update the selection box; deselection, world changes, logout and plugin shutdown clear it. The hidden markers use a separate vertical layer from the standalone API.
+
+Configure `bounding-boxes.selection-enabled`, `selection-seconds` (0 means until cleared), `paste-enabled` and `paste-seconds` (default 10; 0 disables paste previews). After a successful clipboard or schematic paste, the affected bounding box is shown for that duration; ignored air does not expand it. Repeated pastes replace that player's previous paste box. Undo removes the paste box. Preview errors do not fail a successful edit. The client determines appearance and rendering limits; in-game verification is required.
