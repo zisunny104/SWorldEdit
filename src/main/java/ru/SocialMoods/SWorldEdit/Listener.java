@@ -1,6 +1,9 @@
 package ru.SocialMoods.SWorldEdit;
 
 import cn.nukkit.block.Block;
+import ru.SocialMoods.SWorldEdit.preview.Previews;
+import ru.SocialMoods.SWorldEdit.utils.ToolBindings;
+import ru.SocialMoods.SWorldEdit.utils.BlockInfo;
 import cn.nukkit.blockentity.BlockEntity;
 import cn.nukkit.blockentity.BlockEntitySpawnable;
 import cn.nukkit.event.EventHandler;
@@ -82,7 +85,15 @@ public class Listener implements cn.nukkit.event.Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onBlockBreak(BlockBreakEvent event) {
-        if (event.getPlayer().hasPermission("we.command") && isWandItem(event.getItem())) {
+        if (Previews.isMarker(event.getPlayer(),event.getBlock())) { event.setCancelled(true);return; }
+        if (event.getPlayer().hasPermission("we.command")) {
+            boolean wand = isWandItem(event.getItem());
+            ToolBindings.Mode mode = wand ? ToolBindings.Mode.SELECTION : ToolBindings.Mode.NONE;
+            try {
+                PlayerData data = playerData.apply(event.getPlayer());
+                if (data != null && data.getTools() != null) mode = data.getTools().mode(event.getItem(),wand);
+            } catch (RuntimeException e) { if (!wand) return; }
+            if (mode == ToolBindings.Mode.NONE) return;
             // Breaking may arrive after the click, with a different predicted target.
             // Only the interaction event selects a point; a wand must never break a block.
             event.setCancelled(true);
@@ -92,16 +103,23 @@ public class Listener implements cn.nukkit.event.Listener {
     @EventHandler(priority = EventPriority.LOWEST)
     public void onInteract(PlayerInteractEvent event) {
         cn.nukkit.Player player = event.getPlayer();
-        if (!player.hasPermission("we.command") || !isWandItem(event.getItem())) {
+        if (Previews.isMarker(player,event.getBlock())) { event.setCancelled(true);return; }
+        if (!player.hasPermission("we.command")) {
             return;
         }
         if (event.getAction() != PlayerInteractEvent.Action.LEFT_CLICK_BLOCK &&
                 event.getAction() != PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK) {
             return;
         }
-        // Cancel before resolving plugin data, including when it is unavailable or fails.
-        event.setCancelled(true);
+        boolean wand = isWandItem(event.getItem());
+        boolean wasCancelled = event.isCancelled();
+        if (wand) event.setCancelled(true);
         try {
+            PlayerData data = playerData.apply(player);
+            ToolBindings.Mode mode = data == null || data.getTools() == null ?
+                    (wand ? ToolBindings.Mode.SELECTION : ToolBindings.Mode.NONE) : data.getTools().mode(event.getItem(),wand);
+            if (mode == ToolBindings.Mode.NONE) { if (wand) event.setCancelled(wasCancelled); return; }
+            event.setCancelled(true);
             Block block = event.getBlock();
             if (block == null || block.getLevel() == null) {
                 return;
@@ -114,10 +132,13 @@ public class Listener implements cn.nukkit.event.Listener {
                     ((BlockEntitySpawnable) entity).spawnTo(player);
                 }
             }
+            if (mode == ToolBindings.Mode.INFO) {
+                if (event.getAction() == PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK) player.sendMessage(BlockInfo.describe(block));
+                return;
+            }
             if (event.getAction() == PlayerInteractEvent.Action.LEFT_CLICK_BLOCK && !acceptStart(player, block)) {
                 return;
             }
-            PlayerData data = playerData.apply(player);
             if (data == null || data.getSelection() == null) {
                 return;
             }
@@ -126,17 +147,36 @@ public class Listener implements cn.nukkit.event.Listener {
                 case LEFT_CLICK_BLOCK:
                     if (samePosition(data.getSelection().getPosTwo(), block)) return;
                     data.getSelection().setPosTwo(block.getLocation().clone());
+                    Previews.selection(player,data.getSelection());
                     player.sendMessage(String.format("Selected second position at %1$s, %2$s, %3$s", block.getFloorX(), block.getFloorY(), block.getFloorZ()));
                     break;
                 case RIGHT_CLICK_BLOCK:
                     if (samePosition(data.getSelection().getPosOne(), block)) return;
                     data.getSelection().setPosOne(block.getLocation().clone());
+                    Previews.selection(player,data.getSelection());
                     player.sendMessage(String.format("Selected first position at %1$s, %2$s, %3$s", block.getFloorX(), block.getFloorY(), block.getFloorZ()));
                     break;
             }
         } catch (Exception e) {
             log.error("Error: ", e);
         }
+    }
+
+    @EventHandler
+    public void onQuit(cn.nukkit.event.player.PlayerQuitEvent event) {
+        pendingStarts.remove(event.getPlayer());
+        Previews.clear(event.getPlayer());
+        PlayerData data = playerData.apply(event.getPlayer());
+        if(data != null && data.getTools() != null) data.getTools().clear();
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onTeleport(cn.nukkit.event.player.PlayerTeleportEvent event) {
+        if(event.getFrom().getLevel()!=event.getTo().getLevel()) Previews.clear(event.getPlayer());
+    }
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onLevelChange(cn.nukkit.event.entity.EntityLevelChangeEvent event) {
+        if(event.getEntity() instanceof cn.nukkit.Player player && event.getOrigin()!=event.getTarget()) Previews.clear(player);
     }
 
     private boolean isWandItem(Item item) {

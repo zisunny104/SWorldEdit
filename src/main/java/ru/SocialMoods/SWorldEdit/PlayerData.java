@@ -8,8 +8,9 @@ import ru.SocialMoods.SWorldEdit.utils.Selection;
 
 @Getter
 public class PlayerData {
-    private final cn.nukkit.Player player;
+    private cn.nukkit.Player player;
     private final Selection selection;
+    private final ru.SocialMoods.SWorldEdit.utils.ToolBindings tools = new ru.SocialMoods.SWorldEdit.utils.ToolBindings();
     public BlocksArray copiedBlocks = null;
     public final ArrayList<BlocksArray> undoSteps = new ArrayList<>();
 
@@ -17,6 +18,8 @@ public class PlayerData {
         this.player = p;
         this.selection = new Selection();
     }
+
+    public void attachPlayer(cn.nukkit.Player player) { this.player = java.util.Objects.requireNonNull(player); }
 
     public void addUndoBlocks(BlocksArray blocks) {
         this.undoSteps.add(blocks);

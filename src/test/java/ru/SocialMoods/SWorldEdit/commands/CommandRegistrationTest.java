@@ -18,7 +18,7 @@ class CommandRegistrationTest {
         map.register("nukkit",new cn.nukkit.command.defaults.HelpCommand("help"));
         var vanillaHelp=map.getCommand("help");
         var commands=CommandRegistry.create(mock(SchematicService.class));
-        assertEquals(18,commands.size());Set<String> labels=new HashSet<>();
+        assertEquals(20,commands.size());Set<String> labels=new HashSet<>();
         for(var command:commands) {
             assertTrue(labels.add(command.getName()));
             assertTrue(map.register("worldedit",command),command.getName());

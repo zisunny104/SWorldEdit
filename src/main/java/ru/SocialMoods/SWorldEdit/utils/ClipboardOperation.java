@@ -1,6 +1,7 @@
 package ru.SocialMoods.SWorldEdit.utils;
 
 import cn.nukkit.block.Block;
+import ru.SocialMoods.SWorldEdit.preview.Previews;
 import cn.nukkit.level.Level;
 import cn.nukkit.level.Position;
 import cn.nukkit.math.Vector3;
@@ -86,6 +87,7 @@ public final class ClipboardOperation {
         Runnable work = new Runnable() {
             int prepared, index, pairIndex, refreshIndex, side, placed;
             boolean registered, validationQueued;
+            Previews.Bounds affected;
             @Override public void run() {
                 try {
                     int budget = batch;
@@ -111,6 +113,7 @@ public final class ClipboardOperation {
                         undo.blocks.add(before.get(index - 1));
                         BlockEntities.place(level, target, block, tags.get(index - 1));
                         placed++;
+                        affected = Previews.Bounds.include(affected,target);
                     }
                     while (index == snapshot.size() && pairIndex < pairs.size() && budget-- > 0) {
                         ChestPairs.apply(level, pairs.get(pairIndex++));
@@ -126,6 +129,8 @@ public final class ClipboardOperation {
                         if (side == 7) { side = 0; refreshIndex++; }
                     }
                     if (index == snapshot.size() && pairIndex == pairs.size() && refreshIndex == targets.size()) {
+                        if (recordUndo && placed > 0) Previews.pasted(player.getPlayer(),level,affected);
+                        else if (!recordUndo) Previews.clearPaste(player.getPlayer());
                         future.complete(placed);
                     }
                     else schedule.accept(this);

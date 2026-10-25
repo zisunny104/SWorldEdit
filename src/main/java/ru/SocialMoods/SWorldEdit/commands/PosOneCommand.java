@@ -23,6 +23,7 @@ public class PosOneCommand extends WECommand {
             }
 
             dat.getSelection().setPosOne(player.getPosition().clone());
+            ru.SocialMoods.SWorldEdit.preview.Previews.selection(player, dat.getSelection());
             player.sendMessage(String.format("First position set to (%1$s, %2$s, %3$s)", player.getFloorX(), player.getFloorY(), player.getFloorZ()));
 
         } catch (Exception e) {

@@ -18,6 +18,7 @@ public class SWorldEdit extends PluginBase {
 
     private final Map<String, PlayerData> players = new HashMap<>();
     private static SWorldEdit instance;
+    @Getter private ru.SocialMoods.SWorldEdit.preview.BoundingBoxes boundingBoxes;
     @Getter private SchematicRepository schematicRepository;
     @Getter private SchematicService schematicService;
 
@@ -28,6 +29,7 @@ public class SWorldEdit extends PluginBase {
         
 
         try {
+            boundingBoxes = new ru.SocialMoods.SWorldEdit.preview.BoundingBoxes(this);
             this.getServer().getPluginManager().registerEvents(new Listener(), this);
 
             schematicRepository = new SchematicRepositoryImpl(getDataFolder());
@@ -45,6 +47,7 @@ public class SWorldEdit extends PluginBase {
     @Override
     public void onDisable() {
         try {
+            if (boundingBoxes != null) boundingBoxes.close();
             this.getLogger().info("SWorldEdit has been disabled");
         } catch (Exception e) {
             this.getLogger().error(String.format("Error disabling SWorldEdit: %1$s", e));
@@ -81,7 +84,7 @@ public class SWorldEdit extends PluginBase {
             }
         }
 
-
+        data.attachPlayer(player);
         return data;
     }
 }

@@ -14,6 +14,7 @@ public abstract class WECommand extends Command {
         setPermission("we.command");
         commandParameters.clear();
         CommandParameter[] parameters = switch (name) {
+            case "tool" -> new CommandParameter[]{CommandParameter.newEnum("mode",new String[]{"info","none"})};
             case "/help" -> new CommandParameter[]{CommandParameter.newType("page",true,CommandParamType.INT)};
             case "/set", "/walls" -> new CommandParameter[]{CommandParameter.newType("block",CommandParamType.STRING)};
             case "/replace" -> new CommandParameter[]{CommandParameter.newType("from",CommandParamType.STRING),CommandParameter.newType("to",CommandParamType.STRING)};

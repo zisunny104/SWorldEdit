@@ -57,12 +57,13 @@ public class HelpCommand extends WECommand {
             case 3: {
                 help.append("WorldEdit Help - Page 3/3:\n");
                 help.append("  //copy - Copy selected area to clipboard\n");
-                help.append("//paste [-a] - Paste from clipboard\n");
+                help.append("  //paste [-a] - Paste from clipboard\n  //stack <count> [direction] [-a] - Repeat selected area\n");
                 help.append("  //rotate <y> <degrees> - Rotate the selected area around your position\n");
                 help.append("  //wand - Get selection wand axe\n");
                 help.append("  //desel - Clear current selection");
                 help.append("  //undo - Undo the last operation\n");
                 help.append("  //schem <save|paste> <name> - Save or paste a schematic\n");
+                help.append("  /tool <info|none> - Bind or disable a right-click block query tool\n");
                 break;
             }
         }
