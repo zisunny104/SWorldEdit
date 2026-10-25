@@ -66,6 +66,13 @@ The selection and clipboard stay unchanged; `//undo` restores the destination in
 World access is split over server ticks. Configure `stack.max-blocks` and
 `stack.blocks-per-tick` in `config.yml`. Stack copies the primary block layer and supported block entity NBT, without entities or additional layers.
 
+### Terrain smoothing
+`//smooth [iterations]` smooths the selected surface height map using a weighted 3-by-3 filter (default 1 pass). Select at least 3-by-3 columns, including both terrain and headroom. The outer columns remain fixed; modifications stay within the selected height range. It is a terrain tool, not cave, wall or general object smoothing. Empty columns are skipped rather than filled without a source material.
+
+Only configured terrain IDs and air are accepted in a column. Columns containing liquids, other blocks or any block entity are skipped entirely; stone/dirt buildings still count as terrain, so choose the selection carefully. Lowering moves the original surface material to the new height; raising uses the original subsurface as fill and keeps the surface material on top. `smooth.terrain-ids`, `smooth.max-blocks`, `smooth.max-iterations` and `smooth.blocks-per-tick` control eligibility and work limits. Capture, filtering and planning run in server-thread batches; placement uses the existing clipboard pipeline. The clipboard and selection stay unchanged. A successful edit produces one `//undo` step, and partial placement failures retain undo data. Flat or fully skipped selections create no undo step. Test in a disposable world before deployment.
+
+The height-map command concept follows [WorldEdit's region smoothing](https://worldedit.enginehub.org/en/latest/usage/regions/regionops/); this implementation does not claim all WorldEdit masks or flags.
+
 ### Languages
 Set `language: zh_TW` (or `en_US`) in `config.yml` and restart the plugin.
 Bundled catalogues are copied to `lang/` without overwriting existing files.
