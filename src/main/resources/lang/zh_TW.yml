@@ -177,5 +177,10 @@
   "tool.info.nbt": "方塊實體：${0}（方塊指定值不包含 NBT）",
   "tool.info.no-nbt": "無",
   "tool.info.unavailable": "無法取得",
-  "tool.help": "  /tool <info|none> - 綁定或停用右鍵方塊查詢工具\n"
+  "tool.help": "  /tool <info|none> - 綁定或停用右鍵方塊查詢工具\n",
+  "smooth.success": "地形平滑完成，修改 ${0} 個方塊",
+  "smooth.failed": "無法平滑地形：${0}。若已部分修改，可使用 //undo 復原。",
+  "smooth.busy": "上一個地形平滑工作仍在執行",
+  "smooth.description": "平滑選區內的地形高度",
+  "smooth.help": "//smooth [iterations] - 平滑地形高度（預設 1 次）\n"
 }

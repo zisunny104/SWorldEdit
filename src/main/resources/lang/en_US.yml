@@ -177,5 +177,10 @@
   "tool.info.nbt": "Block entity: ${0} (NBT is not included in block input)",
   "tool.info.no-nbt": "none",
   "tool.info.unavailable": "unavailable",
-  "tool.help": "  /tool <info|none> - Bind or disable a right-click block query tool\n"
+  "tool.help": "  /tool <info|none> - Bind or disable a right-click block query tool\n",
+  "smooth.success": "Smoothed terrain: ${0} blocks changed",
+  "smooth.failed": "Cannot smooth terrain: ${0}. Use //undo if changes were partially applied.",
+  "smooth.busy": "Your previous smooth operation is still running",
+  "smooth.description": "Smooth terrain elevation in the selection",
+  "smooth.help": "//smooth [iterations] - Smooth terrain elevation (default 1)\n"
 }

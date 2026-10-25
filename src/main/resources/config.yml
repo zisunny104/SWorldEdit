@@ -8,6 +8,12 @@ clipboard:
   max-blocks: 100000
   blocks-per-tick: 512
 
+smooth:
+  max-blocks: 100000
+  blocks-per-tick: 512
+  max-iterations: 10
+  terrain-ids: [1, 2, 3, 12, 13, 24, 48, 80, 82, 110, 159, 172]
+
 # Embedded BoundingBoxAPI renderer; no additional plugin is required.
 bounding-boxes:
   selection-enabled: true

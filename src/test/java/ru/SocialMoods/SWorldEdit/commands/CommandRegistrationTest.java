@@ -18,7 +18,7 @@ class CommandRegistrationTest {
         map.register("nukkit",new cn.nukkit.command.defaults.HelpCommand("help"));
         var vanillaHelp=map.getCommand("help");
         var commands=CommandRegistry.create(mock(SchematicService.class));
-        assertEquals(20,commands.size());Set<String> labels=new HashSet<>();
+        assertEquals(21,commands.size());Set<String> labels=new HashSet<>();
         for(var command:commands) {
             assertTrue(labels.add(command.getName()));
             assertTrue(map.register("worldedit",command),command.getName());
@@ -47,6 +47,9 @@ class CommandRegistrationTest {
             }
             if(command.getName().equals("/rotate")) {
                 assertEquals(List.of("y"),args[0].enumData.getValues());assertEquals(CommandParamType.INT,args[1].type);
+            }
+            if(command.getName().equals("/smooth")) {
+                assertEquals(1,args.length);assertEquals(CommandParamType.INT,args[0].type);assertTrue(args[0].optional);
             }
             if(command.getName().equals("/schem")) {
                 assertEquals(List.of("save","paste"),args[0].enumData.getValues());assertEquals(2,args.length);
