@@ -26,6 +26,7 @@ public class DeselCommand extends WECommand {
 
             dat.getSelection().setPosOne(null);
             dat.getSelection().setPosTwo(null);
+            ru.SocialMoods.SWorldEdit.preview.Previews.selection(p, dat.getSelection());
             p.sendMessage(Messages.text("text.selection.cleared.successfully"));
 
         } catch (Exception e) {
