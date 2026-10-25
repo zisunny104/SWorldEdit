@@ -25,19 +25,20 @@ public class CopyCommand extends WECommand {
                 return;
             }
 
-            dat.copiedBlocks = new BlocksArray();
+            BlocksArray snapshot = new BlocksArray();
 
-            WorldUtils.copyAsync(sel.getPosOne(), sel.getPosTwo(), new Vector3(p.getX(), p.getY(), p.getZ()), dat.copiedBlocks)
+            WorldUtils.copyAsync(sel.getPosOne(), sel.getPosTwo(), new Vector3(p.getX(), p.getY(), p.getZ()), snapshot)
                     .thenAccept(blocksCopied -> {
-                        p.sendMessage("Successfully copied " + blocksCopied + " blocks to clipboard");
+                        dat.copiedBlocks = snapshot;
+                        p.sendMessage(String.format("Successfully copied %1$s blocks to clipboard", blocksCopied));
                     })
                     .exceptionally(throwable -> {
-                        p.sendMessage("Error while copying: " + throwable.getMessage());
+                        p.sendMessage(String.format("Error while copying: %1$s", throwable.getMessage()));
                         return null;
                     });
 
         } catch (Exception e) {
-            p.sendMessage("Error executing copy command: " + e.getMessage());
+            p.sendMessage(String.format("Error executing copy command: %1$s", e.getMessage()));
         }
     }
 }

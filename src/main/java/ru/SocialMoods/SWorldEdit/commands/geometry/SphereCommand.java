@@ -29,7 +29,7 @@ public class SphereCommand extends WECommand {
 
             Block block = Utils.fromString(args[0], p);
             if (block == null) {
-                p.sendMessage("Block '" + args[0] + "' doesn't exist or is invalid");
+                p.sendMessage(String.format("Block '%1$s' doesn't exist or is invalid", args[0]));
                 return;
             }
 
@@ -53,15 +53,15 @@ public class SphereCommand extends WECommand {
 
             WorldUtils.sphereAsync(dat, center, radius, block)
                     .thenAccept(blocksChanged -> {
-                        p.sendMessage("Successfully created sphere with " + blocksChanged + " blocks");
+                        p.sendMessage(String.format("Successfully created sphere with %1$s blocks", blocksChanged));
                     })
                     .exceptionally(throwable -> {
-                        p.sendMessage("Error while creating sphere: " + throwable.getMessage());
+                        p.sendMessage(String.format("Error while creating sphere: %1$s", throwable.getMessage()));
                         return null;
                     });
 
         } catch (Exception e) {
-            p.sendMessage("Error executing sphere command: " + e.getMessage());
+            p.sendMessage(String.format("Error executing sphere command: %1$s", e.getMessage()));
         }
     }
 }

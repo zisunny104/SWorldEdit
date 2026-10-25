@@ -23,10 +23,10 @@ public class PosOneCommand extends WECommand {
             }
 
             dat.getSelection().setPosOne(player.getPosition().clone());
-            player.sendMessage("First position set to (" + player.getFloorX() + ", " + player.getFloorY() + ", " + player.getFloorZ() + ")");
+            player.sendMessage(String.format("First position set to (%1$s, %2$s, %3$s)", player.getFloorX(), player.getFloorY(), player.getFloorZ()));
 
         } catch (Exception e) {
-            player.sendMessage("Error setting first position: " + e.getMessage());
+            player.sendMessage(String.format("Error setting first position: %1$s", e.getMessage()));
         }
     }
 }

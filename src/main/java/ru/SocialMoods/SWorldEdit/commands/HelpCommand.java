@@ -28,7 +28,7 @@ public class HelpCommand extends WECommand {
                 sender.sendMessage("Usage: //help <page_number>");
             }
         } catch (Exception e) {
-            sender.sendMessage("Error displaying help: " + e.getMessage());
+            sender.sendMessage(String.format("Error displaying help: %1$s", e.getMessage()));
         }
     }
 
@@ -57,10 +57,12 @@ public class HelpCommand extends WECommand {
             case 3: {
                 help.append("WorldEdit Help - Page 3/3:\n");
                 help.append("  //copy - Copy selected area to clipboard\n");
-                help.append("  //paste - Paste from clipboard\n");
-                help.append("  //rotate <axis> <degree> - Rotate clipboard content\n");
+                help.append("//paste [-a] - Paste from clipboard\n");
+                help.append("  //rotate <y> <degrees> - Rotate the selected area around your position\n");
                 help.append("  //wand - Get selection wand axe\n");
                 help.append("  //desel - Clear current selection");
+                help.append("  //undo - Undo the last operation\n");
+                help.append("  //schem <save|paste> <name> - Save or paste a schematic\n");
                 break;
             }
         }

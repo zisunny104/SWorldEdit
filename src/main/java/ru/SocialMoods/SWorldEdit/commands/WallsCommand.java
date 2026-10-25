@@ -35,21 +35,21 @@ public class WallsCommand extends WECommand {
 
             Block block = Utils.fromString(args[0], p);
             if (block == null) {
-                p.sendMessage("Block '" + args[0] + "' doesn't exist or is invalid");
+                p.sendMessage(String.format("Block '%1$s' doesn't exist or is invalid", args[0]));
                 return;
             }
 
             WorldUtils.wallsAsync(sel.getPosOne(), sel.getPosTwo(), block)
                     .thenAccept(blocksChanged -> {
-                        p.sendMessage("Successfully created walls with " + blocksChanged + " blocks");
+                        p.sendMessage(String.format("Successfully created walls with %1$s blocks", blocksChanged));
                     })
                     .exceptionally(throwable -> {
-                        p.sendMessage("Error while creating walls: " + throwable.getMessage());
+                        p.sendMessage(String.format("Error while creating walls: %1$s", throwable.getMessage()));
                         return null;
                     });
 
         } catch (Exception e) {
-            p.sendMessage("Error executing walls command: " + e.getMessage());
+            p.sendMessage(String.format("Error executing walls command: %1$s", e.getMessage()));
         }
     }
 }

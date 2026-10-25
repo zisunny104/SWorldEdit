@@ -1,0 +1,3 @@
+clipboard:
+  max-blocks: 100000
+  blocks-per-tick: 512

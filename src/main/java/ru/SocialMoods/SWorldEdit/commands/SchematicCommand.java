@@ -25,12 +25,12 @@ public class SchematicCommand extends WECommand {
 
     @Override
     public void execute(Player player, PlayerData dat, String[] args) {
-        if (args.length < 2) {
-            player.sendMessage("Usage: //schem <save|paste> <name> [x y z]");
+        if (args.length != 2) {
+            player.sendMessage("Usage: //schem <save|paste> <name>");
             return;
         }
 
-        String action = args[0].toLowerCase();
+        String action = args[0].toLowerCase(java.util.Locale.ROOT);
         String name = args[1];
 
         switch (action) {
@@ -39,10 +39,10 @@ public class SchematicCommand extends WECommand {
                 schematicService.save(dat, name).whenComplete((v, ex) -> {
                     if (ex != null) {
                         log.error("Error while saving schematic {}", name, ex);
-                        player.sendMessage("Error: " + ex.getMessage());
+                        player.sendMessage(String.format("Error: %1$s", ex.getMessage()));
                         return;
                     }
-                    player.sendMessage("Schematic '" + name + "' has been saved");
+                    player.sendMessage(String.format("Schematic '%1$s' has been saved", name));
                 });
             }
             case "paste" -> {
@@ -54,13 +54,13 @@ public class SchematicCommand extends WECommand {
                 schematicService.load(dat, center, name).whenComplete((placed, ex) -> {
                     if (ex != null) {
                         log.error("Error while pasting schematic {}", name, ex);
-                        player.sendMessage("Error: " + ex.getMessage());
+                        player.sendMessage(String.format("Error: %1$s", ex.getMessage()));
                         return;
                     }
-                    player.sendMessage("Schematic '" + name + "' has been pasted (" + placed + " blocks)");
+                    player.sendMessage(String.format("Schematic '%1$s' has been pasted (%2$s blocks)", name, placed));
                 });
             }
-            default -> player.sendMessage("Unknown action: " + action);
+            default -> player.sendMessage(String.format("Unknown action: %1$s", action));
         }
     }
 }

@@ -3,149 +3,86 @@ package ru.SocialMoods.SWorldEdit.utils;
 import cn.nukkit.Player;
 import cn.nukkit.block.Block;
 import cn.nukkit.block.BlockID;
-import ru.SocialMoods.SWorldEdit.SWorldEdit;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 public class Utils {
-
-    private static final Map<String, Integer> blockNameToIdMap = new HashMap<>();
-
-    private static boolean blockTypesAvailable = true;
-
+    private static final Map<String, Integer> IDS = new HashMap<>();
     static {
-        initializeBlockNameMapping();
-    }
-
-    private static void initializeBlockNameMapping() {
-        try {
-            Field[] fields = BlockID.class.getFields();
-            for (Field field : fields) {
-                if (field.getType() == int.class) {
-                    try {
-                        String fieldName = field.getName().toLowerCase();
-                        int fieldValue = field.getInt(null);
-                        blockNameToIdMap.put(fieldName, fieldValue);
-                    } catch (Exception ignored) {
-                    }
-                }
+        for (Field field : BlockID.class.getFields()) {
+            if (field.getType() == int.class) {
+                try {
+                    IDS.put(field.getName().toLowerCase(Locale.ROOT), field.getInt(null));
+                } catch (IllegalAccessException ignored) { }
             }
-        } catch (Exception e) {
-            SWorldEdit.get().getLogger().warning("Failed to initialize block name mapping: " + e.getMessage());
         }
     }
 
-    public static Block fromString(String str, Player player) {
-        if (str == null || str.isEmpty()) {
-            if (player != null) {
-                player.sendMessage("Empty block string provided");
+    public static Block fromString(String input, Player player) {
+        Block result = resolve(input);
+        if (result == null && player != null) {
+            player.sendMessage(String.format("Unknown or unsupported block: %1$s", input));
+        }
+        return result;
+    }
+
+    private static Block resolve(String input) {
+        if (input == null) return null;
+        String value = input.trim().toLowerCase(Locale.ROOT);
+        if (value.startsWith("minecraft:")) value = value.substring(10);
+        if (!value.matches("[a-z0-9_]+(?::[0-9]+)?")) return null;
+        String[] parts = value.split(":");
+        try {
+            int data = parts.length == 2 ? Integer.parseInt(parts[1]) : 0;
+            if (data > 65535) return null;
+            if (parts[0].matches("[0-9]+")) {
+                return checkedBlock(Integer.parseInt(parts[0]), data);
             }
+            // Registry identifiers can differ from legacy BlockID constant names.
+            Block registered = registryBlock("minecraft:" + parts[0], data, parts.length == 2);
+            if (registered != null) return registered;
+            Integer id = IDS.get(parts[0]);
+            return id == null ? null : checkedBlock(id, data);
+        } catch (IllegalArgumentException | IndexOutOfBoundsException e) {
             return null;
         }
-
-        if (str.matches("^-?\\d+(?::-?\\d+)?$")) {
-            return parseWithIdDataFormat(str, player);
-        }
-
-        if (blockTypesAvailable) {
-            Block block = parseWithBlockTypes(str, player);
-            if (block != null) {
-                return block;
-            }
-        }
-
-        Block block = parseWithBlockIdMapping(str, player);
-        if (block != null) {
-            return block;
-        }
-
-        return parseWithIdDataFormat(str, player);
     }
 
-    private static Block parseWithBlockTypes(String str, Player player) {
-        try {
-            Class<?> blockTypesClass = Class.forName("cn.nukkit.block.material.BlockTypes");
-            Class<?> blockTypeClass = Class.forName("cn.nukkit.block.material.BlockType");
-
-            String blockStr = str;
-            if (!str.startsWith("minecraft:")) {
-                blockStr = "minecraft:" + str;
-            }
-
-            Object blockType = blockTypesClass.getMethod("get", String.class).invoke(null, blockStr);
-            if (blockType != null) {
-                Object block = blockTypeClass.getMethod("createBlock").invoke(blockType);
-                if (block instanceof Block) {
-                    if (player != null) {
-                        player.sendMessage("Block created using BlockType: " + blockStr);
-                    }
-                    return (Block) block;
+    private static Block registryBlock(String identifier, int data, boolean explicitData) {
+        for (String registry : new String[]{"cn.nukkit.block.material.BlockTypes", "cn.nukkit.block.BlockTypes"}) {
+            try {
+                Class<?> type = Class.forName(registry);
+                Object entry = type.getMethod("get", String.class).invoke(null, identifier);
+                if (entry == null) continue;
+                if (registry.equals("cn.nukkit.block.material.BlockTypes")) {
+                    Class<?> api = Class.forName("cn.nukkit.block.material.BlockType");
+                    Block block = (Block) api.getMethod("createBlock").invoke(entry);
+                    return explicitData ? checkedBlock(block.getId(), data) : supported(block);
                 }
+                // Invoke the public interface: the registry implementation may be private.
+                Class<?> api = Class.forName("cn.nukkit.utils.material.MaterialType");
+                return checkedBlock((Integer) api.getMethod("getLegacyId").invoke(entry), data);
+            } catch (ReflectiveOperationException | LinkageError | IllegalArgumentException e) {
+                // One absent/incompatible registry must not disable other cores or future lookups.
             }
-        } catch (Exception e) {
-            blockTypesAvailable = false;
-            SWorldEdit.get().getLogger().warning("BlockTypes not available, falling back to BlockID mapping. Error: " + e.getMessage());
         }
         return null;
     }
 
-    private static Block parseWithBlockIdMapping(String str, Player player) {
+    private static Block checkedBlock(int id, int data) {
+        if (id < 0) return null;
         try {
-            String cleanStr = str.contains(":") ? str.split(":")[0] : str;
-            cleanStr = cleanStr.toLowerCase().replace("minecraft:", "");
-
-            int blockId = blockNameToIdMap.get(cleanStr);
-            if (blockId != 0) {
-                int blockData = 0;
-                if (str.contains(":")) {
-                    String[] parts = str.split(":");
-                    if (parts.length > 1) {
-                        blockData = Integer.parseInt(parts[1]);
-                    }
-                }
-
-                Block block = Block.get(blockId, blockData);
-                if (player != null) {
-                    player.sendMessage("Block created using BlockID mapping: " + str);
-                }
-                return block;
-            }
-        } catch (Exception e) {
-            SWorldEdit.get().getLogger().warning("Failed to parse block using BlockID mapping: " + str + " - " + e.getMessage());
+            Block block = supported(Block.get(id, data));
+            return block != null && block.getId() == id && block.getDamage() == data ? block : null;
+        } catch (RuntimeException e) {
+            return null;
         }
-        return null;
     }
 
-    private static Block parseWithIdDataFormat(String str, Player player) {
-        try {
-            String[] parts = str.split(":");
-            int blockId = Integer.parseInt(parts[0]);
-            int blockData = 0;
-
-            if (parts.length > 1) {
-                blockData = Integer.parseInt(parts[1]);
-            }
-
-            Block block = Block.get(blockId, blockData);
-
-            if (player != null) {
-                player.sendMessage("Block created using ID:DATA format: " + str);
-            }
-
-            return block;
-        } catch (NumberFormatException e) {
-            if (player != null) {
-                player.sendMessage("Invalid block format: " + str + ". Use ID:DATA or block name");
-            }
-            SWorldEdit.get().getLogger().warning("Invalid block format: " + str);
-        } catch (Exception e) {
-            if (player != null) {
-                player.sendMessage("Failed to create block: " + str);
-            }
-            SWorldEdit.get().getLogger().warning("Failed to create block: " + str + " - " + e.getMessage());
-        }
-        return null;
+    private static Block supported(Block block) {
+        return block == null || block.getClass().getSimpleName().equals("BlockUnknown") ? null : block;
     }
 }

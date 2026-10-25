@@ -25,7 +25,7 @@ public class RotateCommand extends WECommand {
                 return;
             }
 
-            String axis = args[0].toLowerCase();
+            String axis = args[0].toLowerCase(java.util.Locale.ROOT);
             if (!axis.equals("y")) {
                 p.sendMessage("Currently only Y axis rotation is supported");
                 return;
@@ -56,15 +56,15 @@ public class RotateCommand extends WECommand {
             int finalDegrees = degrees;
             WorldUtils.rotateYAsync(dat, center, sel, degrees)
                     .thenAccept(blocksRotated -> {
-                        p.sendMessage("Successfully rotated " + blocksRotated + " blocks around " + axis + " axis by " + finalDegrees + " degrees");
+                        p.sendMessage(String.format("Successfully rotated %1$s blocks around %2$s axis by %3$s degrees", blocksRotated, axis, finalDegrees));
                     })
                     .exceptionally(throwable -> {
-                        p.sendMessage("Error while rotating blocks: " + throwable.getMessage());
+                        p.sendMessage(String.format("Error while rotating blocks: %1$s", throwable.getMessage()));
                         return null;
                     });
 
         } catch (Exception e) {
-            p.sendMessage("Error executing rotate command: " + e.getMessage());
+            p.sendMessage(String.format("Error executing rotate command: %1$s", e.getMessage()));
         }
     }
 }

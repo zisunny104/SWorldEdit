@@ -57,3 +57,8 @@ Blocks can be specified in multiple formats:
 - **Numeric ID**: `1`, `5:2`  
 - **Block Names**: `stone`, `oak_planks`  
 - **Full Names**: `minecraft:stone`  
+
+## Editing reliability
+Selections consume explicit break-start input once. Clipboard snapshots retain air and primary-layer block state and block-entity NBT. Paste and undo run in bounded main-thread batches, refresh adjacent connections and verify block entities on the following tick. Reciprocal included double chests are paired; a partial copy becomes a usable single chest. Schematics preserve integer block IDs and block-entity NBT, while older byte-array files remain readable. Entities and additional block layers are not included.
+
+All commands require `we.command` (OP by default), expose typed arguments and preserve double-slash labels. `//redo` is removed because redo is not implemented. Configure `clipboard.max-blocks` and `clipboard.blocks-per-tick`.

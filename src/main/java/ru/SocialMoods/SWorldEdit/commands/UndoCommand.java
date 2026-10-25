@@ -7,7 +7,6 @@ import ru.SocialMoods.SWorldEdit.utils.WorldUtils;
 public class UndoCommand extends WECommand {
     public UndoCommand() {
         super("/undo", "Cancel action");
-        super.setAliases(new String[]{"/redo"});
     }
 
     @Override
@@ -27,15 +26,15 @@ public class UndoCommand extends WECommand {
 
             WorldUtils.undoAsync(dat, step)
                     .thenAccept(blocksUndone -> {
-                        p.sendMessage("Successfully undone " + blocksUndone + " blocks");
+                        p.sendMessage(String.format("Successfully undone %1$s blocks", blocksUndone));
                     })
                     .exceptionally(throwable -> {
-                        p.sendMessage("Error while undoing: " + throwable.getMessage());
+                        p.sendMessage(String.format("Error while undoing: %1$s", throwable.getMessage()));
                         return null;
                     });
 
         } catch (Exception e) {
-            p.sendMessage("Error executing undo command: " + e.getMessage());
+            p.sendMessage(String.format("Error executing undo command: %1$s", e.getMessage()));
         }
     }
 }

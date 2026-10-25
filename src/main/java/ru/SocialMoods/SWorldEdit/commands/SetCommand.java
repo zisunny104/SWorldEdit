@@ -34,22 +34,22 @@ public class SetCommand extends WECommand {
 
             Block block = Utils.fromString(args[0], p);
             if (block == null) {
-                p.sendMessage("Block '" + args[0] + "' doesn't exist or is invalid");
+                p.sendMessage(String.format("Block '%1$s' doesn't exist or is invalid", args[0]));
                 p.sendMessage("Use numeric ID or block name");
                 return;
             }
 
             WorldUtils.setAsync(dat, sel.getPosOne(), sel.getPosTwo(), block)
                     .thenAccept(blocksChanged -> {
-                        p.sendMessage("Successfully changed " + blocksChanged + " blocks to " + block.getName());
+                        p.sendMessage(String.format("Successfully changed %1$s blocks to %2$s", blocksChanged, block.getName()));
                     })
                     .exceptionally(throwable -> {
-                        p.sendMessage("Error while setting blocks: " + throwable.getMessage());
+                        p.sendMessage(String.format("Error while setting blocks: %1$s", throwable.getMessage()));
                         return null;
                     });
 
         } catch (Exception e) {
-            p.sendMessage("Error executing set command: " + e.getMessage());
+            p.sendMessage(String.format("Error executing set command: %1$s", e.getMessage()));
         }
     }
 }

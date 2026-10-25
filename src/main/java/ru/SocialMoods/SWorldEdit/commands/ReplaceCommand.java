@@ -35,26 +35,26 @@ public class ReplaceCommand extends WECommand {
             Block replacementBlock = Utils.fromString(args[1], p);
 
             if (originalBlock == null) {
-                p.sendMessage("Original block '" + args[0] + "' doesn't exist or is invalid");
+                p.sendMessage(String.format("Original block '%1$s' doesn't exist or is invalid", args[0]));
                 return;
             }
 
             if (replacementBlock == null) {
-                p.sendMessage("Replacement block '" + args[1] + "' doesn't exist or is invalid");
+                p.sendMessage(String.format("Replacement block '%1$s' doesn't exist or is invalid", args[1]));
                 return;
             }
 
             WorldUtils.replaceAsync(dat, sel.getPosOne(), sel.getPosTwo(), originalBlock, replacementBlock)
                     .thenAccept(blocksReplaced -> {
-                        p.sendMessage("Successfully replaced " + blocksReplaced + " blocks");
+                        p.sendMessage(String.format("Successfully replaced %1$s blocks", blocksReplaced));
                     })
                     .exceptionally(throwable -> {
-                        p.sendMessage("Error while replacing blocks: " + throwable.getMessage());
+                        p.sendMessage(String.format("Error while replacing blocks: %1$s", throwable.getMessage()));
                         return null;
                     });
 
         } catch (Exception e) {
-            p.sendMessage("Error executing replace command: " + e.getMessage());
+            p.sendMessage(String.format("Error executing replace command: %1$s", e.getMessage()));
         }
     }
 }

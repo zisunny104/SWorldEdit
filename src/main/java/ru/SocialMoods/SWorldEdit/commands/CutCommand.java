@@ -30,15 +30,15 @@ public class CutCommand extends WECommand {
 
             WorldUtils.setAsync(dat, sel.getPosOne(), sel.getPosTwo(), airBlock)
                     .thenAccept(blocksChanged -> {
-                        p.sendMessage("Successfully removed " + blocksChanged + " blocks");
+                        p.sendMessage(String.format("Successfully removed %1$s blocks", blocksChanged));
                     })
                     .exceptionally(throwable -> {
-                        p.sendMessage("Error while cutting blocks: " + throwable.getMessage());
+                        p.sendMessage(String.format("Error while cutting blocks: %1$s", throwable.getMessage()));
                         return null;
                     });
 
         } catch (Exception e) {
-            p.sendMessage("Error executing cut command: " + e.getMessage());
+            p.sendMessage(String.format("Error executing cut command: %1$s", e.getMessage()));
         }
     }
 }

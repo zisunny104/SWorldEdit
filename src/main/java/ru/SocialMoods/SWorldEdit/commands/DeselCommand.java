@@ -27,7 +27,7 @@ public class DeselCommand extends WECommand {
             p.sendMessage("Selection cleared successfully");
 
         } catch (Exception e) {
-            p.sendMessage("Error clearing selection: " + e.getMessage());
+            p.sendMessage(String.format("Error clearing selection: %1$s", e.getMessage()));
         }
     }
 }

@@ -23,10 +23,10 @@ public class PosTwoCommand extends WECommand {
             }
 
             dat.getSelection().setPosTwo(player.getPosition().clone());
-            player.sendMessage("Second position set to (" + player.getFloorX() + ", " + player.getFloorY() + ", " + player.getFloorZ() + ")");
+            player.sendMessage(String.format("Second position set to (%1$s, %2$s, %3$s)", player.getFloorX(), player.getFloorY(), player.getFloorZ()));
 
         } catch (Exception e) {
-            player.sendMessage("Error setting second position: " + e.getMessage());
+            player.sendMessage(String.format("Error setting second position: %1$s", e.getMessage()));
         }
     }
 }
