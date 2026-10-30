@@ -182,5 +182,13 @@
   "smooth.failed": "Cannot smooth terrain: ${0}. Use //undo if changes were partially applied.",
   "smooth.busy": "Your previous smooth operation is still running",
   "smooth.description": "Smooth terrain elevation in the selection",
-  "smooth.help": "//smooth [iterations] - Smooth terrain elevation (default 1)\n"
+  "smooth.help": "//smooth [iterations] - Smooth terrain elevation (default 1)\n",
+  "surface.busy": "Your previous green/naturalize operation is still running",
+  "naturalize.success": "Naturalized ${0} blocks",
+  "green.success": "Greened ${0} blocks",
+  "green.description": "Convert nearby exposed dirt to grass",
+  "surface.failed": "Surface operation failed: ${0}. Use //undo if changes were partially applied.",
+  "green.help": "  /green [radius] [height] [-f] - Green nearby dirt; -f includes coarse dirt\n",
+  "naturalize.description": "Restore grass, three dirt layers and stone in the selection",
+  "naturalize.help": "  //naturalize - Restore grass, dirt and stone layers in the selection\n"
 }

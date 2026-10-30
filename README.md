@@ -73,6 +73,15 @@ Only configured terrain IDs define the surface. A non-terrain block or block ent
 
 The height-map command concept follows [WorldEdit's region smoothing](https://worldedit.enginehub.org/en/latest/usage/regions/regionops/), with Gaussian and boundary behavior checked against [FAWE](https://github.com/IntellectualSites/FastAsyncWorldEdit/blob/main/worldedit-core/src/main/java/com/sk89q/worldedit/math/convolution/HeightMapFilter.java). This implementation uses its own tick-batched planner and obstacle rules; it does not claim all FAWE masks, brushes or flags.
 
+### Grass and natural terrain layers
+`/green [radius] [height] [-f]` converts exposed ordinary dirt around the player into grass blocks; `-f` includes coarse dirt. `//green` is an alias. Radius defaults to 10; omitted height scans the full world height, while an explicit height limits the search to that many blocks above and below the player's block Y. Each column stops at the first movement-blocking block or liquid, so dirt under a roof or water is not converted. Passable plants are retained. This does not change elevations, biomes or plant tall grass.
+
+`//naturalize` uses the existing selection. In each column it finds the highest ordinary grass/dirt/stone, then changes only those block types into grass at depth 0, dirt at depths 1–3 and stone below. Ores, stone variants, coarse dirt, air and other blocks remain unchanged; depth does not restart at a cave or skipped block. Columns whose terrain continues immediately above the selection are skipped, preventing a grass layer inside an underground cross-section. Select from below the intended soil layers to above the surface. Stone buildings in the selection can be affected.
+
+Both commands plan changes in server-thread batches, leave the user's clipboard and selection unchanged, preserve block entities at skipped positions and use one `//undo` step. Limits are configurable under `surface`: `default-radius` (10), `max-radius` (128), `max-checks` (1000000 conservative bounding-box scan estimate), `max-blocks` (100000 actual planned changes) and `blocks-per-tick` (512). Exceeding either planning limit aborts before any writes; partial placement failures keep undo. Command metadata includes numeric arguments and `-f` candidates. New functionality remains local until owner gameplay verification and approval.
+
+Behavior was checked against FAWE's [green implementation](https://github.com/IntellectualSites/FastAsyncWorldEdit/blob/main/worldedit-core/src/main/java/com/sk89q/worldedit/EditSession.java) and [Naturalizer](https://github.com/IntellectualSites/FastAsyncWorldEdit/blob/main/worldedit-core/src/main/java/com/sk89q/worldedit/function/block/Naturalizer.java). The implementation is adapted to Nukkit's block IDs and existing batched placement. Unlike FAWE's current green loop, the configured lower Y bound is included; candidates with block entities are never changed.
+
 ### Languages
 Set `language: zh_TW` (or `en_US`) in `config.yml` and restart the plugin.
 Bundled catalogues are copied to `lang/` without overwriting existing files.

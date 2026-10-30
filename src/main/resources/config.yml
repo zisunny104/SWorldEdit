@@ -14,6 +14,13 @@ smooth:
   max-iterations: 10
   terrain-ids: [1, 2, 3, 12, 13, 24, 48, 80, 82, 110, 159, 172]
 
+surface:
+  default-radius: 10
+  max-radius: 128
+  max-checks: 1000000
+  max-blocks: 100000
+  blocks-per-tick: 512
+
 # Embedded BoundingBoxAPI renderer; no additional plugin is required.
 bounding-boxes:
   selection-enabled: true
