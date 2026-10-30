@@ -1,6 +1,7 @@
 package ru.SocialMoods.SWorldEdit.utils;
 
 import cn.nukkit.block.Block;
+import cn.nukkit.block.BlockAir;
 import cn.nukkit.level.Level;
 import cn.nukkit.level.Position;
 import cn.nukkit.math.Vector3;
@@ -11,18 +12,20 @@ import java.util.function.Consumer;
 
 /** Height-map smoothing. Capture and planning are tick-batched; placement uses the clipboard pipeline. */
 public final class SmoothOperation implements Runnable {
+    private static final int RADIUS=5;
+    private static final double[] WEIGHTS=gaussian();
     private final PlayerData player;
     private final Level level;
     private final int x,y,z,width,height,length,area,volume,batch,iterations,limit;
     private final Set<Integer> terrain;
     private final Consumer<Runnable> schedule;
     private final Block[] blocks;
-    private final int[] tops;
-    private final boolean[] locked;
-    private double[] heights, next;
+    private final int[] tops,bottoms,obstructions;
+    private double[] heights, next, horizontal;
     private final BlocksArray changes = new BlocksArray();
     private final CompletableFuture<Integer> future = new CompletableFuture<>();
     private int read, pass, filtered, planned;
+    private boolean vertical;
 
     public SmoothOperation(PlayerData player, Position first, Position second, int iterations,
             int maxIterations, int limit, int batch, Set<Integer> terrain, Consumer<Runnable> schedule) {
@@ -39,7 +42,32 @@ public final class SmoothOperation implements Runnable {
         if(volume>limit || y<level.getMinBlockY() || (long)y+height-1>level.getMaxBlockY())
             throw new IllegalArgumentException("Selection exceeds smoothing limits or world height");
         blocks=new Block[volume];tops=new int[area];Arrays.fill(tops,-1);
-        locked=new boolean[area];heights=new double[area];Arrays.fill(heights,-1);next=new double[area];
+        bottoms=new int[area];obstructions=new int[area];Arrays.fill(obstructions,-1);
+        heights=new double[area];Arrays.fill(heights,-1);next=new double[area];horizontal=new double[area];
+    }
+
+    private static double[] gaussian(){
+        double[] weights=new double[RADIUS*2+1];double total=0;
+        for(int i=-RADIUS;i<=RADIUS;i++){weights[i+RADIUS]=Math.exp(-i*i/2.0);total+=weights[i+RADIUS];}
+        for(int i=0;i<weights.length;i++)weights[i]/=total;
+        return weights;
+    }
+
+    private boolean usable(int column){return tops[column]>=0 && obstructions[column]<tops[column];}
+
+    private double filteredHeight(int column){
+        int cx=column%width,cz=column/width;
+        double sum=0,weight=0;
+        for(int delta=-RADIUS;delta<=RADIUS;delta++){
+            int axis=(vertical?cz:cx)+delta;
+            // Extend the current edge sample, as in FAWE's boundary sampling.
+            int neighbor=axis<0 || axis>=(vertical?length:width)?column:
+                (vertical?cx+axis*width:axis+cz*width);
+            if(!usable(neighbor))continue;
+            double w=WEIGHTS[delta+RADIUS];
+            sum+=(vertical?horizontal[neighbor]:heights[neighbor])*w;weight+=w;
+        }
+        return sum/weight;
     }
 
     public CompletableFuture<Integer> start() {
@@ -57,36 +85,36 @@ public final class SmoothOperation implements Runnable {
                 int index=read++, column=index%area, h=index/area;
                 Vector3 position=position(index);
                 Block block=level.getBlock(position).clone();blocks[index]=block;
-                if(level.getBlockEntity(position)!=null || (block.getId()!=0 && !terrain.contains(block.getId())))locked[column]=true;
-                if(terrain.contains(block.getId())){tops[column]=h;heights[column]=h;}
+                boolean natural=terrain.contains(block.getId());
+                if(level.getBlockEntity(position)!=null || (block.getId()!=0 && !natural))obstructions[column]=h;
+                if(natural){
+                    if(h==0 || !terrain.contains(blocks[index-area].getId()) || obstructions[column]>=h-1)bottoms[column]=h;
+                    tops[column]=h;heights[column]=h;
+                }
             }
             while(read==volume && pass<iterations && budget-->0) {
-                int c=filtered++, cx=c%width, cz=c/width;
-                if(locked[c] || tops[c]<0 || cx==0 || cz==0 || cx==width-1 || cz==length-1)next[c]=heights[c];
-                else {
-                    double sum=0,weight=0;
-                    for(int dz=-1;dz<=1;dz++)for(int dx=-1;dx<=1;dx++) {
-                        int neighbor=c+dx+dz*width;
-                        if(locked[neighbor] || tops[neighbor]<0)continue;
-                        int w=(dx==0?2:1)*(dz==0?2:1);
-                        sum+=heights[neighbor]*w;weight+=w;
-                    }
-                    next[c]=sum/weight;
+                int c=filtered++;
+                double value=usable(c)?filteredHeight(c):heights[c];
+                if(vertical)next[c]=usable(c)?Math.max(bottoms[c],Math.min(height-1,Math.round(value))):value;
+                else horizontal[c]=value;
+                if(filtered==area){
+                    filtered=0;
+                    if(vertical){double[] swap=heights;heights=next;next=swap;pass++;}
+                    vertical=!vertical;
                 }
-                if(filtered==area){double[] swap=heights;heights=next;next=swap;filtered=0;pass++;}
             }
             while(pass==iterations && planned<volume && budget-->0) {
                 int index=planned++, c=index%area, h=index/area;
-                if(locked[c] || tops[c]<0)continue;
+                if(!usable(c) || h<bottoms[c])continue;
                 int target=(int)Math.round(heights[c]), top=tops[c];
                 if(target==top)continue;
                 Block desired=blocks[index];
-                if(h>target && h<=top)desired=Block.get(0);
+                if(h>target && h<=top)desired=new BlockAir();
                 else if(h==target)desired=blocks[c+top*area];
-                else if(target>top && h>=top && h<target) {
-                    // Preserve the surface material, using the old subsurface to fill raised ground.
-                    desired=top>0 && terrain.contains(blocks[c+(top-1)*area].getId()) ? blocks[c+(top-1)*area] : blocks[c+top*area];
-                    if(desired.getId()==2 || desired.getId()==110)desired=Block.get(3);
+                else if(h<target) {
+                    // Resample only the continuous terrain below this surface; preserve its material layers.
+                    int source=bottoms[c]+(int)((long)(h-bottoms[c])*(top-bottoms[c])/(target-bottoms[c]));
+                    desired=blocks[c+source*area];
                 }
                 Block original=blocks[index];
                 if(desired.getId()==original.getId() && desired.getDamage()==original.getDamage())continue;
