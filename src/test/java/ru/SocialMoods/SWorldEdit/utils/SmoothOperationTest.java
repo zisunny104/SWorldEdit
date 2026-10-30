@@ -46,7 +46,7 @@ class SmoothOperationTest {
     void finish(){int guard=10000;while(!queue.isEmpty()){assertTrue(guard-->0);queue.remove().run();}}
     int id(int y){return world.getOrDefault("0,"+y+",0",block(0,0,y,0)).getId();}
 
-    @Test void lowersPeakInBatchesKeepsSurfaceBoundaryAndUndo(){
+    @Test void lowersPeakInBatchesWithinSelectionAndUndo(){
         terrain(4,1);var result=operation(1,1).start();
         assertTrue(writes.isEmpty());queue.remove().run();assertTrue(writes.isEmpty());
         finish();assertEquals(3,result.join());assertEquals(2,id(72));assertEquals(0,id(73));assertEquals(0,id(74));
@@ -63,6 +63,28 @@ class SmoothOperationTest {
         terrain(4,1);var result=operation(2,3).start();finish();assertEquals(4,result.join());assertEquals(2,id(71));
         world.clear();writes.clear();player.undoSteps.clear();terrain(2,2);
         result=operation(3,3).start();finish();assertEquals(0,result.join());assertTrue(writes.isEmpty());assertTrue(player.undoSteps.isEmpty());
+    }
+    @Test void edgePeaksParticipateWithoutWritingOutsideSelection(){
+        terrain(1,1);
+        for(int h=1;h<=4;h++)world.put("-1,"+(70+h)+",0",block(h==4?2:3,-1,70+h,0));
+        var result=operation(1,2).start();finish();assertTrue(result.join()>0);
+        assertEquals(0,world.get("-1,74,0").getId());
+        assertTrue(writes.stream().allMatch(v->v.x>=-1&&v.x<=1&&v.z>=-1&&v.z<=1&&v.y>=70&&v.y<=74));
+    }
+    @Test void buriedBedrockAndOreDoNotExcludeSurfaceOrGetOverwritten(){
+        for(int protectedId:List.of(7,14)){
+            world.clear();writes.clear();player.undoSteps.clear();terrain(4,1);
+            world.put("0,70,0",block(protectedId,0,70,0));
+            var result=operation(1,2).start();finish();assertTrue(result.join()>0);
+            assertEquals(protectedId,id(70));assertTrue(writes.stream().noneMatch(v->v.y==70));
+        }
+    }
+    @Test void compressionResamplesSubsurfaceInsteadOfOnlyPaintingGrass(){
+        // A tall thin column: two stone layers, two dirt layers, then grass.
+        // Neighbors at height 1 bring its surface down to height 2.
+        terrain(4,1);world.put("0,70,0",block(1,0,70,0));world.put("0,71,0",block(1,0,71,0));
+        var result=operation(1,2).start();finish();assertTrue(result.join()>0);
+        assertEquals(1,id(70));assertEquals(3,id(71));assertEquals(2,id(72));
     }
     @Test void skipsColumnsWithWaterStructuresOrBlockEntities(){
         for(int unsafe:List.of(9,54)){
