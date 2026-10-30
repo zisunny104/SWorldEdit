@@ -182,5 +182,13 @@
   "smooth.failed": "無法平滑地形：${0}。若已部分修改，可使用 //undo 復原。",
   "smooth.busy": "上一個地形平滑工作仍在執行",
   "smooth.description": "平滑選區內的地形高度",
-  "smooth.help": "//smooth [iterations] - 平滑地形高度（預設 1 次）\n"
+  "smooth.help": "//smooth [iterations] - 平滑地形高度（預設 1 次）\n",
+  "surface.busy": "上一個草地或地層整理工作仍在執行",
+  "naturalize.success": "地層整理完成，修改 ${0} 個方塊",
+  "green.success": "已將 ${0} 個方塊轉成草地",
+  "green.description": "將附近露出的泥土轉成草地",
+  "surface.failed": "地表處理失敗：${0}。若已部分修改，可使用 //undo 復原。",
+  "green.help": "  /green [radius] [height] [-f] - 附近泥土變草地；-f 包含粗泥\n",
+  "naturalize.description": "將選區整理為草地、三層泥土及石頭",
+  "naturalize.help": "  //naturalize - 將選區整理為草地、泥土及石頭地層\n"
 }

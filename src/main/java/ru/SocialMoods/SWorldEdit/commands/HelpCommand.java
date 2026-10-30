@@ -67,6 +67,8 @@ public class HelpCommand extends WECommand {
                 help.append(Messages.text("text.help.schematic"));
                 help.append(Messages.text("tool.help"));
                 help.append(Messages.text("smooth.help"));
+                help.append(Messages.text("green.help"));
+                help.append(Messages.text("naturalize.help"));
                 break;
             }
         }

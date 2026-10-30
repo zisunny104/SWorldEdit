@@ -18,7 +18,7 @@ class CommandRegistrationTest {
         map.register("nukkit",new cn.nukkit.command.defaults.HelpCommand("help"));
         var vanillaHelp=map.getCommand("help");
         var commands=CommandRegistry.create(mock(SchematicService.class));
-        assertEquals(21,commands.size());Set<String> labels=new HashSet<>();
+        assertEquals(23,commands.size());Set<String> labels=new HashSet<>();
         for(var command:commands) {
             assertTrue(labels.add(command.getName()));
             assertTrue(map.register("worldedit",command),command.getName());
@@ -35,13 +35,15 @@ class CommandRegistrationTest {
         assertSame(vanillaHelp,map.getCommand("help"));
         assertNull(map.getCommand("/redo"));
         assertSame(map.getCommand("/schem"),map.getCommand("/schematic"));
+        assertSame(map.getCommand("green"),map.getCommand("/green"));
+        assertNotNull(map.getCommand("/naturalize"));
     }
     @Test void metadataMatchesSupportedArgumentsAndPermissionVisibility() {
         var commands=CommandRegistry.create(mock(SchematicService.class));
         for(var command:commands) {
             var args=command.getCommandParameters("default");
             for(var arg:args) assertTrue(arg.type!=CommandParamType.RAWTEXT || arg.enumData!=null,command.getName());
-            if(Set.of("/copy","/cut","/undo","/wand","/desel","/pos1","/pos2").contains(command.getName())) assertEquals(0,args.length);
+            if(Set.of("/copy","/cut","/undo","/wand","/desel","/pos1","/pos2","/naturalize").contains(command.getName())) assertEquals(0,args.length);
             if(Set.of("/sphere","/hsphere","/cyl","/hcyl").contains(command.getName())) {
                 assertEquals(CommandParamType.STRING,args[0].type); assertEquals(CommandParamType.INT,args[1].type);
             }
@@ -50,6 +52,12 @@ class CommandRegistrationTest {
             }
             if(command.getName().equals("/smooth")) {
                 assertEquals(1,args.length);assertEquals(CommandParamType.INT,args[0].type);assertTrue(args[0].optional);
+            }
+            if(command.getName().equals("green")) {
+                assertEquals(3,args.length);assertEquals(CommandParamType.FLOAT,args[0].type);assertTrue(args[0].optional);
+                assertEquals(CommandParamType.INT,args[1].type);assertTrue(args[1].optional);
+                assertEquals(List.of("-f"),args[2].enumData.getValues());assertTrue(args[2].optional);
+                assertEquals(List.of("-f"),command.getCommandParameters("force")[0].enumData.getValues());
             }
             if(command.getName().equals("/schem")) {
                 assertEquals(List.of("save","paste"),args[0].enumData.getValues());assertEquals(2,args.length);
