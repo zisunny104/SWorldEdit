@@ -18,7 +18,7 @@ public class HelpCommand extends WECommand {
             } else if (args.length == 1) {
                 try {
                     int page = Integer.parseInt(args[0]);
-                    if (page >= 1 && page <= 3) {
+                    if (page >= 1 && page <= 4) {
                         sender.sendMessage(this.getHelpPage(page));
                     } else {
                         sender.sendMessage(Messages.text("text.invalid.page.number.please.use.page.1.2"));
@@ -69,6 +69,10 @@ public class HelpCommand extends WECommand {
                 help.append(Messages.text("smooth.help"));
                 help.append(Messages.text("green.help"));
                 help.append(Messages.text("naturalize.help"));
+                break;
+            }
+            case 4: {
+                help.append(Messages.text("selection.help"));
                 break;
             }
         }
