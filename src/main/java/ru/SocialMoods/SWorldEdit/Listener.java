@@ -25,6 +25,8 @@ import cn.nukkit.network.protocol.UpdateBlockPacket;
 import lombok.extern.slf4j.Slf4j;
 import java.util.Objects;
 import java.util.function.Function;
+import java.lang.reflect.Method;
+import cn.nukkit.network.protocol.types.PlayerBlockActionData;
 
 @SuppressWarnings("unused")
 @Slf4j
@@ -33,6 +35,16 @@ public class Listener implements cn.nukkit.event.Listener {
     private final Function<cn.nukkit.Player, PlayerData> playerData;
     private record Point(int x, int y, int z) { }
     private final Map<cn.nukkit.Player, Set<Point>> pendingStarts = new WeakHashMap<>();
+    // The same method returns Map on older cores and List on newer cores; the JVM descriptor differs.
+    private static final Method ACTIONS_GETTER=actionsGetter();
+    private static Method actionsGetter(){
+        try{return PlayerAuthInputPacket.class.getMethod("getBlockActionData");}
+        catch(NoSuchMethodException e){throw new IllegalStateException("Missing player block action API",e);}
+    }
+    static Iterable<?> actionValues(Object actions){
+        if(actions instanceof Map<?,?> map)return map.values();
+        return actions instanceof Iterable<?> iterable?iterable:java.util.List.of();
+    }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPacket(DataPacketReceiveEvent event) {
@@ -48,17 +60,25 @@ public class Listener implements cn.nukkit.event.Listener {
         Set<Point> starts = new HashSet<>();
         if (auth) {
             PlayerAuthInputPacket packet = (PlayerAuthInputPacket) event.getPacket();
-            for (var action : packet.getBlockActionData().values()) {
+            boolean hasActions=false;
+            Iterable<?> actions;
+            try{actions=actionValues(ACTIONS_GETTER.invoke(packet));}
+            catch(ReflectiveOperationException e){throw new IllegalStateException("Cannot read player block actions",e);}
+            for (var value : actions) {
+                if(!(value instanceof PlayerBlockActionData action))continue;
+                hasActions=true;
                 if (action.getAction() == PlayerActionType.START_DESTROY_BLOCK) {
                     var position = action.getPosition();
                     starts.add(new Point(position.x, position.y, position.z));
                 }
             }
+            if(!hasActions)return; // Ordinary movement must not erase a pending click.
         } else {
             PlayerActionPacket packet = (PlayerActionPacket) event.getPacket();
             if (packet.action == PlayerActionPacket.ACTION_START_BREAK) {
                 starts.add(new Point(packet.x, packet.y, packet.z));
-            }
+            } else if(packet.action!=PlayerActionPacket.ACTION_ABORT_BREAK && packet.action!=PlayerActionPacket.ACTION_STOP_BREAK &&
+                    packet.action!=18 && packet.action!=26 && packet.action!=27)return;
         }
         // The core can emit multiple interactions for one input and for held-button continues.
         // Permit each explicit start once; continued/predicted destruction cannot change selection.
@@ -174,11 +194,11 @@ public class Listener implements cn.nukkit.event.Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onTeleport(cn.nukkit.event.player.PlayerTeleportEvent event) {
-        if(event.getFrom().getLevel()!=event.getTo().getLevel()) Previews.clear(event.getPlayer());
+        if(event.getFrom().getLevel()!=event.getTo().getLevel()){pendingStarts.remove(event.getPlayer());Previews.clear(event.getPlayer());}
     }
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onLevelChange(cn.nukkit.event.entity.EntityLevelChangeEvent event) {
-        if(event.getEntity() instanceof cn.nukkit.Player player && event.getOrigin()!=event.getTarget()) Previews.clear(player);
+        if(event.getEntity() instanceof cn.nukkit.Player player && event.getOrigin()!=event.getTarget()){pendingStarts.remove(player);Previews.clear(player);}
     }
 
     private boolean isWandItem(Item item) {

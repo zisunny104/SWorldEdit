@@ -131,8 +131,37 @@ class ListenerTest {
         var packet = mock(cn.nukkit.network.protocol.PlayerAuthInputPacket.class);
         var data = new cn.nukkit.network.protocol.types.PlayerBlockActionData(action,
                 new cn.nukkit.math.BlockVector3(x, 70, 4), 1);
-        when(packet.getBlockActionData()).thenReturn(java.util.Map.of(action, data));
+        stubActions(packet,java.util.List.of(data));
         listener.onPacket(new cn.nukkit.event.server.DataPacketReceiveEvent(player, packet));
+    }
+
+    private static void stubActions(cn.nukkit.network.protocol.PlayerAuthInputPacket packet,java.util.List<?> actions){
+        try{
+            var getter=cn.nukkit.network.protocol.PlayerAuthInputPacket.class.getMethod("getBlockActionData");
+            Object payload=java.util.Map.class.isAssignableFrom(getter.getReturnType())?
+                (actions.isEmpty()?java.util.Map.of():java.util.Map.of("action",actions.get(0))):actions;
+            getter.invoke(doReturn(payload).when(packet));
+        }catch(ReflectiveOperationException e){throw new AssertionError(e);}
+    }
+
+    @Test void ordinaryMovementAndUnrelatedActionsDoNotEraseAnExplicitStart(){
+        input(cn.nukkit.network.protocol.types.PlayerActionType.START_DESTROY_BLOCK,2);
+        var movement=mock(cn.nukkit.network.protocol.PlayerAuthInputPacket.class);stubActions(movement,java.util.List.of());
+        listener.onPacket(new cn.nukkit.event.server.DataPacketReceiveEvent(player,movement));
+        var jump=new cn.nukkit.network.protocol.PlayerActionPacket();jump.action=8;
+        listener.onPacket(new cn.nukkit.event.server.DataPacketReceiveEvent(player,jump));
+        listener.onInteract(click(PlayerInteractEvent.Action.LEFT_CLICK_BLOCK));
+        assertNotNull(selection.getPosTwo());assertEquals(2,selection.getPosTwo().getFloorX());
+        when(block.getFloorX()).thenReturn(3);when(block.getLocation()).thenReturn(new Location(3,70,4,level));
+        listener.onInteract(click(PlayerInteractEvent.Action.LEFT_CLICK_BLOCK));
+        assertEquals(2,selection.getPosTwo().getFloorX());verify(player,times(1)).sendMessage(anyString());
+    }
+    @Test void supportsBothActionCollectionsWithoutDiscardingRepeatedStartTypes(){
+        var a=new cn.nukkit.network.protocol.types.PlayerBlockActionData(cn.nukkit.network.protocol.types.PlayerActionType.START_DESTROY_BLOCK,new cn.nukkit.math.BlockVector3(1,70,4),1);
+        var b=new cn.nukkit.network.protocol.types.PlayerBlockActionData(cn.nukkit.network.protocol.types.PlayerActionType.START_DESTROY_BLOCK,new cn.nukkit.math.BlockVector3(2,70,4),1);
+        var values=new java.util.ArrayList<>();Listener.actionValues(java.util.List.of(a,b)).forEach(values::add);
+        assertEquals(java.util.List.of(a,b),values);values.clear();
+        Listener.actionValues(java.util.Map.of("start",a)).forEach(values::add);assertEquals(java.util.List.of(a),values);
     }
 
     @Test void authInputStartCanOnlySelectOnceAndContinueCannotSelectBehindIt() {
