@@ -18,7 +18,7 @@ class CommandRegistrationTest {
         map.register("nukkit",new cn.nukkit.command.defaults.HelpCommand("help"));
         var vanillaHelp=map.getCommand("help");
         var commands=CommandRegistry.create(mock(SchematicService.class));
-        assertEquals(23,commands.size());Set<String> labels=new HashSet<>();
+        assertEquals(29,commands.size());Set<String> labels=new HashSet<>();
         for(var command:commands) {
             assertTrue(labels.add(command.getName()));
             assertTrue(map.register("worldedit",command),command.getName());
@@ -59,6 +59,12 @@ class CommandRegistrationTest {
                 assertEquals(List.of("-f"),args[2].enumData.getValues());assertTrue(args[2].optional);
                 assertEquals(List.of("-f"),command.getCommandParameters("force")[0].enumData.getValues());
             }
+            if(Set.of("/expand","/contract").contains(command.getName())){
+                assertEquals(CommandParamType.INT,args[0].type);assertEquals(CommandParamType.INT,args[1].type);assertTrue(args[1].optional);
+                assertNotNull(command.getCommandParameters("directed")[1].enumData);
+            }
+            if(command.getName().equals("/expand"))assertEquals(List.of("vert"),command.getCommandParameters("vertical")[0].enumData.getValues());
+            if(command.getName().equals("/size"))assertEquals(List.of("-c"),args[0].enumData.getValues());
             if(command.getName().equals("/schem")) {
                 assertEquals(List.of("save","paste"),args[0].enumData.getValues());assertEquals(2,args.length);
             }

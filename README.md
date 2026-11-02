@@ -52,6 +52,17 @@ Schematics use SWorldEdit-specific compressed NBT (not Sponge/FAWE `.schem`). Bl
 
 ## Block Specification
 
+### Selection utilities
+These commands change the cuboid selection only; they never move/edit world blocks, replace the clipboard or create an undo step. They refresh the existing selection outline.
+
+- `//size [-c]`: inclusive bounds, dimensions and volume; `-c` reports clipboard bounds and stored entries without needing a selection.
+- `//expand <amount> [reverse-amount] [direction]`, or `//expand vert`: expand one face and optionally its opposite; `vert` uses the world's full height.
+- `//contract <amount> [reverse-amount] [direction]`: contract the trailing face towards the direction, following FAWE. For example, `//contract 2 up` raises the lower face by 2; it does not lower the top face.
+- `//shift <amount> [direction]`: move the selection only, preserving its dimensions.
+- `//outset <amount> [-h|-v]` / `//inset <amount> [-h|-v]`: expand/contract both sides on all axes, horizontal axes only (`-h`) or the vertical axis only (`-v`). The two flags are mutually exclusive here.
+
+Directions are `north`, `south`, `east`, `west`, `up`, `down`; omitted direction uses the dominant viewing axis. Amounts must be non-negative integers. Inverted/empty results, coordinate overflow and results outside world height are rejected before either point changes. Original corner roles are retained when reversed. Volumes use arbitrary-precision arithmetic. These are the listed cuboid forms, not all FAWE selectors, direction aliases or flags. See `//help 4` for the new commands.
+
 Blocks can be specified in multiple formats:
 
 - **Numeric ID**: `1`, `5:2`  
@@ -126,3 +137,31 @@ Hold an item and run `/tool info`, then right-click a block to inspect its coord
 The renderer from [BoundingBoxAPI](https://github.com/zisunny104/BoundingBoxAPI) is embedded internally; no separate plugin is needed. It sends client-only structure-block previews to the selecting player without world writes. Both wand and position commands update the selection box; deselection, world changes, logout and plugin shutdown clear it. The hidden markers use a separate vertical layer from the standalone API.
 
 Configure `bounding-boxes.selection-enabled`, `selection-seconds` (0 means until cleared), `paste-enabled` and `paste-seconds` (default 10; 0 disables paste previews). After a successful clipboard or schematic paste, the affected bounding box is shown for that duration; ignored air does not expand it. Repeated pastes replace that player's previous paste box. Undo removes the paste box. Preview errors do not fail a successful edit. The client determines appearance and rendering limits; in-game verification is required.
+
+## FAWE 差異盤點
+
+更新基準：2026-11-02，本機整合版。依 [FAWE 指令分類](https://intellectualsites.gitbook.io/fastasyncworldedit/features/main-commands-and-permissions)及 [WorldEdit 指令文件](https://worldedit.enginehub.org/en/latest/commands/)盤點功能群組；這不是所有旗標、平台相容性或細項行為的完整相容聲明。下列「已有」也不代表已在 VPS 部署或通過本次遊戲測試。
+
+| 類型 | 本機現況 | 尚缺或不同之處 | 順序 |
+|---|---|---|---|
+| 長方體選區 | 兩點、工具選取、取消、外框已有 | 非長方體與 FAWE CUI 不相容 | 基礎 |
+| 選區調整 | 本批加入 size、expand、contract、shift、outset、inset；含 vert、反向數量、水平／垂直旗標 | 只支援上述基本語法；不接受空選區或超出世界高度 | 本批 |
+| 選點輸入 | 玩家目前位置、工具點擊已有 | pos 座標參數、hpos、chunk、選區模式切換 | 後續 |
+| 方塊統計 | size 可看體積與剪貼簿尺寸 | count、distr、搜尋與分布分析 | 下一批候選 |
+| 填滿、替換、牆與幾何 | set、replace、walls、球與圓柱已有 | faces、outline、hollow、overlay、center、line、curve、錐體／金字塔；既有圓柱參數也不完整 | 分批 |
+| 剪貼簿 | copy、cut、可重複 paste、略過空氣、主要層狀態及支援的 NBT 已有 | 原點／選區旗標、一般實體、生態域及額外方塊層 | 分批 |
+| 旋轉、翻轉與移動 | 既有 rotate 操作選區世界，並非 FAWE 的剪貼簿旋轉 | clipboard rotate／flip、move；方向狀態與 NBT 轉向須驗證，不能只旋轉座標 | 先確認相容語意 |
+| 堆疊 | count、方向、視線方向、略過空氣、NBT、復原已有 | 其餘旗標、來源遮罩、一般實體等 | 部分 |
+| 地形與草地 | smooth、green、naturalize 已有本機實作 | 尚無 smooth brush、任意地形遮罩；保護規則與 FAWE 不完全相同 | 待遊戲驗證 |
+| 水、雪與附近方塊工具 | 尚缺 | drain、fixwater／fixlava、snow／thaw、removenear／replacenear、removeabove／below | 先核對核心物理更新 |
+| 歷史 | 本次執行期間的單步 undo 已有 | redo、多步、清除、持久化／跨重啟歷史與他人歷史 | 需先設計前後快照與記憶體上限 |
+| 遮罩與材質樣式 | 只支援單一方塊名稱、ID 與附加資料；少數指令有略過空氣 | 條件遮罩、交集／聯集、比例隨機材質與樣式解析器 | 共用層優先 |
+| 筆刷與工具 | 唯讀 tool info 已有 | brush、sphere／smooth brush、筆刷尺寸／材質／遮罩、超級鎬等 | 依賴遮罩與共用編輯流程 |
+| Schematic | 自有壓縮 NBT 格式，含整數 ID 及支援的方塊實體 | Sponge／FAWE 格式、格式選擇、列表、跨核心與 Java／Bedrock 資料轉換 | 不能把檔案副檔名當成格式相容 |
+| 生態域與世界生成 | 尚缺 | biome 查詢／編輯、regen、樹木／植被、礦脈／洞穴等 | 依賴核心版本與生成器 |
+| 主執行緒與工作控制 | clipboard、stack、smooth、surface 已分批處理 | set、walls、geometry、rotate 仍有舊 AsyncTask 路徑；未統一取消、逾時、進度與互斥 | 優先處理既有實作缺口 |
+| 權限與參數提示 | 共用 we.command（預設 OP）、已宣告參數與候選 | FAWE 細分權限、個人限制與管理設定介面 | 分批 |
+| 多語系 | 獨立 en_US／zh_TW、覆寫與英文備援已有 | 玩家個別語系、更多語系及核心名稱翻譯 | 部分 |
+| 快照、腳本與外部服務 | 尚缺 | snapshot／restore、CraftScript、圖片生成地形、遠端資源等 | 非目前首要範圍 |
+
+後續先統一既有編輯的執行流程，再補只讀統計與共用遮罩；大型新功能另開分支。既有 rotate 的行為切換、檔案格式或其他破壞相容性的變動需另行確認。新功能先在本機測試與編譯，取得擁有者遊戲內驗證及明確同意後才提交上游。

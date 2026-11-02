@@ -10,7 +10,10 @@ public final class CommandRegistry {
         var commands = List.of(new HelpCommand(), new PosOneCommand(), new PosTwoCommand(), new WandCommand(), new ToolCommand(),
                 new CopyCommand(), new StackCommand(), new SmoothCommand(), new GreenCommand(), new NaturalizeCommand(), new PasteCommand(), new SetCommand(), new WallsCommand(),
                 new CutCommand(), new UndoCommand(), new DeselCommand(), new ReplaceCommand(), new RotateCommand(),
-                new CylCommand(), new HCylCommand(), new SphereCommand(), new HSphereCommand(), new SchematicCommand(schematics));
+                new CylCommand(), new HCylCommand(), new SphereCommand(), new HSphereCommand(), new SchematicCommand(schematics),
+                new SelectionCommand(SelectionCommand.Kind.SIZE),new SelectionCommand(SelectionCommand.Kind.EXPAND),
+                new SelectionCommand(SelectionCommand.Kind.CONTRACT),new SelectionCommand(SelectionCommand.Kind.SHIFT),
+                new SelectionCommand(SelectionCommand.Kind.OUTSET),new SelectionCommand(SelectionCommand.Kind.INSET));
         commands.forEach(command -> command.setUsage(command.syntax()));
         return commands;
     }
