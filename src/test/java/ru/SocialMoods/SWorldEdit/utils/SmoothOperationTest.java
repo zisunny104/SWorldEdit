@@ -45,6 +45,90 @@ class SmoothOperationTest {
     SmoothOperation operation(int iterations,int batch){return new SmoothOperation(player,new Position(-1,70,-1,level),new Position(1,74,1,level),iterations,10,100, batch,Set.of(1,2,3),queue::add);}
     void finish(){int guard=10000;while(!queue.isEmpty()){assertTrue(guard-->0);queue.remove().run();}}
     int id(int y){return world.getOrDefault("0,"+y+",0",block(0,0,y,0)).getId();}
+    void waterTo(int top,int waterId){
+        for(int x=-1;x<=1;x++)for(int z=-1;z<=1;z++)for(int h=0;h<=top;h++){
+            String position=x+","+(70+h)+","+z;
+            if(!world.containsKey(position))world.put(position,block(waterId,x,70+h,z));
+        }
+    }
+    SmoothOperation wetOperation(int iterations){return new SmoothOperation(player,new Position(-1,70,-1,level),new Position(1,76,1,level),iterations,10,100,2,Set.of(1,2,3),queue::add);}
+
+    @Test void smoothsSubmergedPeakAndUndoRestoresBedAndWater(){
+        for(int waterId:List.of(8,9)){
+            world.clear();writes.clear();player.undoSteps.clear();terrain(4,1);waterTo(6,waterId);
+            var result=wetOperation(1).start();finish();assertEquals(3,result.join());
+            assertEquals(2,id(72));assertEquals(waterId,id(73));assertEquals(waterId,id(74));
+            for(int x=-1;x<=1;x++)for(int z=-1;z<=1;z++)assertEquals(waterId,world.get(x+",76,"+z).getId());
+            assertEquals(0,id(77));assertTrue(writes.stream().allMatch(v->v.y<=76));
+            var undo=ClipboardOperation.undo(player,0,2,queue::add);finish();assertEquals(3,undo.join());
+            assertEquals(2,id(74));assertEquals(3,id(73));assertEquals(waterId,id(75));
+        }
+    }
+
+    @Test void raisesSubmergedValleyByReplacingWaterWithBedMaterial(){
+        terrain(1,4);waterTo(6,9);
+        var result=wetOperation(1).start();finish();assertEquals(3,result.join());
+        assertEquals(3,id(71));assertEquals(3,id(72));assertEquals(2,id(73));
+        for(int h=74;h<=76;h++)assertEquals(9,id(h));
+    }
+
+    @Test void loweredShoreGetsAdjacentWaterAndRemovesSubmergedLandPlantsWithUndo(){
+        terrain(4,1);waterTo(3,9);
+        world.put("0,75,0",block(175,0,75,0));world.put("0,76,0",block(175,0,76,0));when(world.get("0,76,0").getDamage()).thenReturn(8);
+        var result=operation(1,2).start();finish();assertTrue(result.join()>0);
+        assertEquals(2,id(72));assertEquals(9,id(73));assertEquals(0,id(74));assertEquals(0,id(75));assertEquals(0,id(76));
+        var undo=ClipboardOperation.undo(player,0,2,queue::add);finish();undo.join();
+        assertEquals(2,id(74));assertEquals(175,id(75));assertEquals(175,id(76));assertEquals(8,world.get("0,76,0").getDamage());
+    }
+
+    @Test void doesNotFloodUnchangedDryTerrainWithASelectionsHighestWater(){
+        terrain(2,2);world.put("-1,73,-1",block(9,-1,73,-1));world.put("-1,74,-1",block(9,-1,74,-1));
+        var result=operation(1,2).start();finish();assertEquals(0,result.join());
+        assertEquals(0,id(73));assertEquals(0,id(74));assertTrue(writes.isEmpty());
+    }
+
+    @Test void refusesToJoinDifferentWaterLevelsBeforeAnyWrites(){
+        for(int x=-4;x<=4;x++){
+            int top=x==0?4:0;
+            for(int h=0;h<=top;h++)world.put(x+","+(70+h)+",0",block(h==top?2:3,x,70+h,0));
+            if(x!=0)for(int h=1;h<=(x<0?2:3);h++)world.put(x+","+(70+h)+",0",block(9,x,70+h,0));
+        }
+        var work=new SmoothOperation(player,new Position(-4,70,0,level),new Position(4,74,0,level),2,10,100,2,Set.of(1,2,3),queue::add);
+        var result=work.start();finish();
+        var failure=assertThrows(java.util.concurrent.CompletionException.class,result::join);
+        assertTrue(failure.getCause().getMessage().contains("Y="));assertTrue(writes.isEmpty());assertTrue(player.undoSteps.isEmpty());
+    }
+
+    @Test void keepsDifferentPondsAtTheirOwnLevelsWhenBankRemainsClosed(){
+        for(int x=-5;x<=5;x++){
+            int top=Math.abs(x)<=2?6:0;
+            for(int h=0;h<=top;h++)world.put(x+","+(70+h)+",0",block(h==top?2:3,x,70+h,0));
+            if(top==0)for(int h=1;h<=(x<0?2:3);h++)world.put(x+","+(70+h)+",0",block(9,x,70+h,0));
+        }
+        var work=new SmoothOperation(player,new Position(-5,70,0,level),new Position(5,76,0,level),1,10,200,2,Set.of(1,2,3),queue::add);
+        var result=work.start();finish();assertTrue(result.join()>0);
+        assertEquals(9,world.get("-5,72,0").getId());assertEquals(9,world.get("5,73,0").getId());
+        assertFalse(world.containsKey("-5,73,0"));assertEquals(3,id(74));
+    }
+
+    @Test void waterAboveSelectionIsPreservedAndCaveBelowBedStaysDry(){
+        terrain(4,1);world.put("0,71,0",block(0,0,71,0));waterTo(8,9);
+        var result=operation(1,2).start();finish();assertTrue(result.join()>0);
+        assertEquals(0,id(71));assertEquals(2,id(72));assertEquals(9,id(73));assertEquals(9,id(74));
+        for(int h=75;h<=78;h++)assertEquals(9,id(h));
+        assertTrue(writes.stream().allMatch(v->v.y<=74));
+    }
+
+    @Test void flowingOrHangingWaterIsProtectedAndUnderwaterModeCanBeDisabled(){
+        terrain(4,1);Block flow=block(8,0,75,0);when(flow.getDamage()).thenReturn(8);world.put("0,75,0",flow);
+        var result=wetOperation(1).start();finish();assertEquals(0,result.join());
+        assertEquals(2,id(74));assertSame(flow,world.get("0,75,0"));
+        world.clear();terrain(4,1);world.put("0,76,0",block(9,0,76,0));
+        result=wetOperation(1).start();finish();assertEquals(0,result.join());assertEquals(2,id(74));
+        world.clear();terrain(4,1);waterTo(6,9);
+        var disabled=new SmoothOperation(player,new Position(-1,70,-1,level),new Position(1,76,1,level),1,10,100,2,Set.of(1,2,3),false,3,queue::add);
+        result=disabled.start();finish();assertEquals(0,result.join());assertEquals(2,id(74));
+    }
 
     @Test void lowersPeakInBatchesWithinSelectionAndUndo(){
         terrain(4,1);var result=operation(1,1).start();
@@ -124,8 +208,8 @@ class SmoothOperationTest {
         var result=operation(1,2).start();finish();assertTrue(result.join()>0);
         assertEquals(1,id(70));assertEquals(3,id(71));assertEquals(2,id(72));
     }
-    @Test void skipsColumnsWithWaterStructuresOrBlockEntities(){
-        for(int unsafe:List.of(9,54)){
+    @Test void skipsColumnsWithLavaStructuresOrBlockEntities(){
+        for(int unsafe:List.of(10,11,54)){
             world.clear();terrain(4,1);world.put("0,74,0",block(unsafe,0,74,0));
             var result=operation(1,3).start();finish();assertEquals(0,result.join());
         }
@@ -138,6 +222,8 @@ class SmoothOperationTest {
         assertThrows(IllegalArgumentException.class,()->operation(11,1));
         assertThrows(IllegalArgumentException.class,()->new SmoothOperation(player,new Position(0,70,0,level),new Position(100,74,100,level),1,10,100,1,Set.of(1),queue::add));
         assertThrows(IllegalArgumentException.class,()->new SmoothOperation(player,new Position(0,70,0,level),new Position(1,74,1,mock(Level.class)),1,10,100,1,Set.of(1),queue::add));
+        assertThrows(IllegalArgumentException.class,()->new SmoothOperation(player,new Position(0,70,0,level),new Position(1,74,1,level),1,10,100,1,Set.of(1,9),queue::add));
+        assertThrows(IllegalArgumentException.class,()->new SmoothOperation(player,new Position(0,70,0,level),new Position(1,74,1,level),1,10,100,1,Set.of(1),true,0,queue::add));
         verify(level,never()).getBlock(any(Vector3.class));assertTrue(writes.isEmpty());
     }
     @Test void readFailureDoesNotEditAndPartialWriteFailureRetainsUndo(){

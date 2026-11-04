@@ -19,27 +19,39 @@ public final class SmoothOperation implements Runnable {
     private final PlayerData player;
     private final Level level;
     private final int x,y,z,width,height,terrainHeight,length,area,volume,batch,iterations,limit;
+    private final boolean underwater;
+    private final long tickNanos;
     private final Set<Integer> terrain;
     private final Consumer<Runnable> schedule;
     private final Block[] blocks;
     private final int[] tops,bottoms,obstructions,covers,ceilings;
+    private final int[] waterTops,waterFill,waterSources,waterQueue;
     private double[] heights, next, horizontal;
     private final BlocksArray changes = new BlocksArray();
     private final CompletableFuture<Integer> future = new CompletableFuture<>();
-    private int read, pass, filtered, planned;
+    private int read, analyzed, pass, filtered, waterSeeded,waterRead,waterWritten,planned;
     private boolean vertical;
 
     public SmoothOperation(PlayerData player, Position first, Position second, int iterations,
             int maxIterations, int limit, int batch, Set<Integer> terrain, Consumer<Runnable> schedule) {
+        this(player,first,second,iterations,maxIterations,limit,batch,terrain,true,3,schedule);
+    }
+
+    public SmoothOperation(PlayerData player, Position first, Position second, int iterations,
+            int maxIterations, int limit, int batch, Set<Integer> terrain, boolean underwater,int tickMillis,Consumer<Runnable> schedule) {
         if (first.level == null || first.level != second.level) throw new IllegalArgumentException("Select positions in the same world");
         if (iterations < 1 || iterations > maxIterations)
             throw new IllegalArgumentException(Messages.text("smooth.invalid-iterations",iterations,maxIterations));
         if (batch < 1 || limit < 1)
             throw new IllegalArgumentException(Messages.text("smooth.invalid-budget",limit,batch));
+        if(tickMillis<1)throw new IllegalArgumentException(Messages.text("smooth.invalid-time-budget",tickMillis));
         if (terrain.isEmpty() || terrain.contains(0))
             throw new IllegalArgumentException(Messages.text("smooth.invalid-terrain"));
+        if(!Collections.disjoint(terrain,Set.of(8,9,10,11)))
+            throw new IllegalArgumentException(Messages.text("smooth.invalid-liquid-terrain"));
         this.player=player;this.level=first.level;this.iterations=iterations;this.limit=limit;this.batch=batch;
         this.terrain=Set.copyOf(terrain);this.schedule=schedule;
+        this.underwater=underwater;this.tickNanos=java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(tickMillis);
         x=Math.min(first.getFloorX(),second.getFloorX());y=Math.min(first.getFloorY(),second.getFloorY());z=Math.min(first.getFloorZ(),second.getFloorZ());
         width=Math.toIntExact((long)Math.max(first.getFloorX(),second.getFloorX())-x+1);
         terrainHeight=Math.toIntExact((long)Math.max(first.getFloorY(),second.getFloorY())-y+1);
@@ -56,6 +68,9 @@ public final class SmoothOperation implements Runnable {
         bottoms=new int[area];obstructions=new int[area];Arrays.fill(obstructions,-1);
         covers=new int[area];
         ceilings=new int[area];Arrays.fill(ceilings,height-1);
+        waterTops=new int[area];Arrays.fill(waterTops,-1);
+        waterFill=new int[area];Arrays.fill(waterFill,-1);
+        waterSources=new int[area];Arrays.fill(waterSources,-1);waterQueue=new int[area];
         heights=new double[area];Arrays.fill(heights,-1);next=new double[area];horizontal=new double[area];
     }
 
@@ -67,6 +82,65 @@ public final class SmoothOperation implements Runnable {
     }
 
     private boolean usable(int column){return tops[column]>=0 && obstructions[column]<tops[column];}
+
+    private static boolean water(Block block){return block.getId()==8 || block.getId()==9;}
+
+    /** Finish metadata for every column before any neighbor participates in the height filter. */
+    private void analyze(int c){
+        int top=tops[c];if(top<0)return;
+        for(int h=top+1;h<height && surfaceCover(blocks[c+h*area]);h++)covers[c]++;
+        if(covers[c]>0){
+            Block firstCover=blocks[c+(top+1)*area],lastCover=blocks[c+(top+covers[c])*area];
+            if(firstCover.getId()==175 && (firstCover.getDamage()&8)!=0 || lastCover.getId()==175 && (lastCover.getDamage()&8)==0)
+                obstructions[c]=Math.max(obstructions[c],top);
+        }
+        for(int h=top+1;h<height;h++)if(naturalLeaves(blocks[c+h*area])){ceilings[c]=h-1;break;}
+        if(!underwater)return;
+        int end=top;
+        for(int h=top+1;h<height;h++){
+            Block block=blocks[c+h*area];
+            if(!water(block))continue;
+            // A hanging liquid sheet, waterfall or non-source flow has no reliable level to preserve.
+            if(h!=end+1 || block.getDamage()!=0){obstructions[c]=Math.max(obstructions[c],h);return;}
+            end=h;
+        }
+        if(end>top)waterTops[c]=end;
+    }
+
+    private void seedWater(int c){
+        if(waterTops[c]<0)return;
+        waterFill[c]=waterTops[c];waterSources[c]=c;
+        if(heights[c]<waterTops[c])waterQueue[waterWritten++]=c;
+    }
+
+    private void spreadWater(int from,int to){
+        int level=waterFill[from];
+        if(waterTops[to]>=0){
+            int common=Math.min(level,waterTops[to]);
+            if(level!=waterTops[to] && (waterTops[from]<0 || heights[from]<common && heights[to]<common && (tops[from]>=common || tops[to]>=common)))
+                throw new IllegalArgumentException(Messages.text("smooth.water-level-conflict",y+level,y+waterTops[to]));
+            return;
+        }
+        if(!usable(to) || heights[to]>=level || heights[to]>=tops[to] || tops[to]<level)return;
+        if(waterFill[to]>=0){
+            if(waterFill[to]!=level)throw new IllegalArgumentException(Messages.text("smooth.water-level-conflict",y+waterFill[to],y+level));
+            return;
+        }
+        if(level>ceilings[to])throw new IllegalArgumentException(Messages.text("smooth.water-protected",x+to%width,z+to/width));
+        waterFill[to]=level;waterSources[to]=waterSources[from];waterQueue[waterWritten++]=to;
+    }
+
+    private void floodWater(int c){
+        int cx=c%width,cz=c/width;
+        if(cx>0)spreadWater(c,c-1);if(cx+1<width)spreadWater(c,c+1);
+        if(cz>0)spreadWater(c,c-width);if(cz+1<length)spreadWater(c,c+width);
+    }
+
+    private Block fillWater(int c,Block original){
+        if(water(original))return original;
+        int source=waterSources[c];
+        return blocks[source+waterTops[source]*area];
+    }
 
     private static boolean surfaceCover(Block block) {
         if(SURFACE_COVER.contains(block.getId()))return true;
@@ -110,28 +184,21 @@ public final class SmoothOperation implements Runnable {
         if(future.isDone())return;
         try {
             int budget=batch;
-            while(read<volume && budget-->0) {
+            long deadline=System.nanoTime()+tickNanos;
+            while(read<volume && budget-->0 && System.nanoTime()<deadline) {
                 int index=read++, column=index%area, h=index/area;
                 Vector3 position=position(index);
                 Block block=level.getBlock(position).clone();blocks[index]=block;
                 boolean natural=h<terrainHeight && terrain.contains(block.getId());
-                if(level.getBlockEntity(position)!=null || (block.getId()!=0 && !natural && !surfaceCover(block) && !naturalLeaves(block)))obstructions[column]=h;
+                if(level.getBlockEntity(position)!=null || (block.getId()!=0 && !natural && !surfaceCover(block) && !naturalLeaves(block) && !(underwater&&water(block))))obstructions[column]=h;
                 if(natural){
                     if(h==0 || !terrain.contains(blocks[index-area].getId()) || obstructions[column]>=h-1)bottoms[column]=h;
                     tops[column]=h;heights[column]=h;
                 }
             }
-            while(read==volume && pass<iterations && budget-->0) {
+            while(read==volume && analyzed<area && budget-->0 && System.nanoTime()<deadline)analyze(analyzed++);
+            while(analyzed==area && pass<iterations && budget-->0 && System.nanoTime()<deadline) {
                 int c=filtered++;
-                if(pass==0 && !vertical && tops[c]>=0) {
-                    for(int h=tops[c]+1;h<height && surfaceCover(blocks[c+h*area]);h++)covers[c]++;
-                    if(covers[c]>0){
-                        Block firstCover=blocks[c+(tops[c]+1)*area],lastCover=blocks[c+(tops[c]+covers[c])*area];
-                        if(firstCover.getId()==175 && (firstCover.getDamage()&8)!=0 || lastCover.getId()==175 && (lastCover.getDamage()&8)==0)
-                            obstructions[c]=tops[c]; // Never move only half of a plant across the selection boundary.
-                    }
-                    for(int h=tops[c]+1;h<height;h++)if(naturalLeaves(blocks[c+h*area])){ceilings[c]=h-1;break;}
-                }
                 double value=usable(c)?filteredHeight(c):heights[c];
                 if(vertical)next[c]=usable(c)?Math.max(bottoms[c],Math.min(Math.min(terrainHeight-1,ceilings[c]-covers[c]),Math.round(value))):value;
                 else horizontal[c]=value;
@@ -141,7 +208,9 @@ public final class SmoothOperation implements Runnable {
                     vertical=!vertical;
                 }
             }
-            while(pass==iterations && planned<volume && budget-->0) {
+            while(pass==iterations && waterSeeded<area && budget-->0 && System.nanoTime()<deadline)seedWater(waterSeeded++);
+            while(waterSeeded==area && waterRead<waterWritten && budget-->0 && System.nanoTime()<deadline)floodWater(waterQueue[waterRead++]);
+            while(waterSeeded==area && waterRead==waterWritten && planned<volume && budget-->0 && System.nanoTime()<deadline) {
                 int index=planned++, c=index%area, h=index/area;
                 if(!usable(c) || h<bottoms[c])continue;
                 int target=(int)Math.round(heights[c]), top=tops[c];
@@ -154,10 +223,17 @@ public final class SmoothOperation implements Runnable {
                     int source=bottoms[c]+(int)((long)(h-bottoms[c])*(top-bottoms[c])/(target-bottoms[c]));
                     desired=blocks[c+source*area];
                 }
-                // Move the existing surface cover with its ground, including snow thickness and plant metadata.
-                if(h>target && h<=target+covers[c])desired=blocks[c+(top+h-target)*area];
-                else if(h>target && h>top && h<=top+covers[c])desired=new BlockAir();
                 Block original=blocks[index];
+                if(waterFill[c]>target){
+                    // Only restore water inside the chosen terrain range; existing water above it is untouched.
+                    if(h>target && h<=waterFill[c] && h<terrainHeight)desired=fillWater(c,original);
+                    // Land plants/snow do not get transplanted underwater. Their removal is included in Undo.
+                    else if(h>top && h<=top+covers[c])desired=new BlockAir();
+                }else{
+                    // Move the existing surface cover with its ground, including snow thickness and plant metadata.
+                    if(h>target && h<=target+covers[c])desired=blocks[c+(top+h-target)*area];
+                    else if(h>target && h>top && h<=top+covers[c])desired=new BlockAir();
+                }
                 if(desired.getId()==original.getId() && desired.getDamage()==original.getDamage())continue;
                 Block detached=desired.clone();detached.setComponents(index%width,h,index/width%length);
                 changes.blocks.add(detached);
