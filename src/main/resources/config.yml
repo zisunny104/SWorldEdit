@@ -24,6 +24,8 @@ clipboard:
 smooth:
   max-blocks: 100000
   blocks-per-tick: 512
+  tick-millis: 3
+  underwater: true # Preserve standing-water levels while smoothing the bed and lowered shoreline
   max-iterations: 10
   terrain-ids: [1, 2, 3, 12, 13, 24, 48, 80, 82, 110, 159, 172]
 

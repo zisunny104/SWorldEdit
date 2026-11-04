@@ -80,7 +80,26 @@ World access is split over server ticks. Configure `stack.max-blocks` and
 ### Terrain smoothing
 `//smooth [iterations]` smooths the selected surface height map using a Gaussian filter (radius 5, sigma 1; default 1 pass). Select terrain and enough headroom. Edges participate using extended edge samples; terrain writes stay inside the selection. Each pass rounds to block heights before the next pass. A square surface depression can get softer, rounded edges and become shallower; this does not guarantee a perfect circle. It is a terrain tool, not cave, wall or general object smoothing. Empty columns are skipped rather than filled without a source material.
 
-Only configured terrain IDs define the surface. Grass, flowers, thin snow and complete double plants move with the ground, preserving metadata. Up to two layers immediately above the selection are captured so a boundary-cut plant can move as one unit; only associated surface cover may be changed there, and Undo includes it. No item drops are generated. Natural leaves use the running core's `isPersistent()` API: non-persistent canopies stay in place without excluding the ground below, and terrain/cover cannot grow through them. Persistent leaves, trunks, buildings, liquids and block entities still protect their columns. Buried obstacles and air gaps constrain the continuous surface terrain; these lower obstacles stay unchanged. Resampling preserves the surface material and underlying layers. Stone/dirt buildings still count as terrain, so choose the selection carefully. `smooth.terrain-ids`, `smooth.max-blocks`, `smooth.max-iterations` and `smooth.blocks-per-tick` control eligibility and work limits. Capture, filtering and planning run in server-thread batches; placement uses the existing clipboard pipeline. The clipboard and selection stay unchanged. A successful edit produces one `//undo` step, and partial placement failures retain undo data. Flat or fully skipped selections create no undo step.
+Only configured terrain IDs define the surface. Grass, flowers, thin snow and complete double plants move with the ground, preserving metadata. Up to two layers immediately above the selection are captured so a boundary-cut plant can move as one unit; only associated surface cover may be changed there, and Undo includes it. No item drops are generated. Natural leaves use the running core's `isPersistent()` API: non-persistent canopies stay in place without excluding the ground below, and terrain/cover cannot grow through them. Persistent leaves, trunks, buildings, lava, unsupported flowing water and block entities still protect their columns. Buried obstacles and air gaps constrain the continuous surface terrain; these lower obstacles stay unchanged. Resampling preserves the surface material and underlying layers. Stone/dirt buildings still count as terrain, so choose the selection carefully. `smooth.terrain-ids`, `smooth.max-blocks`, `smooth.max-iterations` and `smooth.blocks-per-tick` control eligibility and work limits. Capture, filtering and planning run in server-thread batches; placement uses the existing clipboard pipeline. The clipboard and selection stay unchanged. A successful edit produces one `//undo` step, and partial placement failures retain undo data. Flat or fully skipped selections create no undo step.
+
+`smooth.underwater` defaults to true. Contiguous source water (IDs 8/9, metadata 0)
+above a selected bed is excluded from the height map. Raising the bed replaces water
+with terrain; lowering it restores water beneath the observed original level. Existing
+water above the selected terrain range stays unchanged. Newly lowered shoreline cells
+inherit water only through adjacent water or other newly lowered shoreline cells;
+the selection's highest water level is not applied to unrelated dry ground or caves.
+If this would newly connect different water levels, the operation fails before editing;
+select the water bodies separately. Source water is copied from its native snapshot.
+
+Flowing/falling water, hanging water sheets, lava, buildings, block entities and
+unrecognised aquatic plants remain protected. New shore water cannot overwrite a
+protected canopy. Land plants/snow whose new ground is submerged are removed without
+drops, and Undo restores them with the original bed and water. World physics may later
+move fluids after other updates; this tool does not simulate a complete watershed or
+edit waterlogging/additional layers. Use `smooth.underwater: false` to skip water columns.
+`smooth.tick-millis` (default 3) adds an elapsed-time budget to the batch limit; one core
+world access or one processing unit cannot be preempted. The command remains
+`//smooth [iterations]` and retains the separate `smooth.max-blocks` limit.
 
 The height-map command concept follows [WorldEdit's region smoothing](https://worldedit.enginehub.org/en/latest/usage/regions/regionops/), with Gaussian and boundary behavior checked against [FAWE](https://github.com/IntellectualSites/FastAsyncWorldEdit/blob/main/worldedit-core/src/main/java/com/sk89q/worldedit/math/convolution/HeightMapFilter.java). This implementation uses its own tick-batched planner and obstacle rules; it does not claim all FAWE masks, brushes or flags.
 

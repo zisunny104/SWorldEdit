@@ -219,5 +219,9 @@
   "streaming.phase.1": "Pasting",
   "streaming.phase.2": "Restoring container pairs",
   "streaming.phase.3": "Updating block entities and connections",
-  "streaming.enabled": "Streaming clipboard enabled: up to ${0} blocks, ${1} ms per tick; compression and disk I/O run in the background."
+  "streaming.enabled": "Streaming clipboard enabled: up to ${0} blocks, ${1} ms per tick; compression and disk I/O run in the background.",
+  "smooth.invalid-time-budget": "smooth.tick-millis=${0} must be positive.",
+  "smooth.water-protected": "New shoreline water would overlap protected surface blocks at X=${0}, Z=${1}. No changes were made.",
+  "smooth.water-level-conflict": "Smoothing would connect water at Y=${0} and Y=${1}; select these water bodies separately. No changes were made.",
+  "smooth.invalid-liquid-terrain": "smooth.terrain-ids must not contain water or lava (8, 9, 10, 11); water levels are handled separately."
 }

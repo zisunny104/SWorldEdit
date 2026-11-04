@@ -28,6 +28,7 @@ public final class SmoothCommand extends WECommand {
             SmoothOperation work=new SmoothOperation(data,data.getSelection().getPosOne(),data.getSelection().getPosTwo(),iterations,
                 plugin.getConfig().getInt("smooth.max-iterations",10),plugin.getConfig().getInt("smooth.max-blocks",100000),
                 plugin.getConfig().getInt("smooth.blocks-per-tick",512),terrain,
+                plugin.getConfig().getBoolean("smooth.underwater",true),plugin.getConfig().getInt("smooth.tick-millis",3),
                 task->plugin.getServer().getScheduler().scheduleDelayedTask(plugin,task,1));
             busy.add(id);
             work.start().whenComplete((count,error)->{

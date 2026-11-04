@@ -219,5 +219,9 @@
   "streaming.phase.1": "貼上中",
   "streaming.phase.2": "恢復容器配對",
   "streaming.phase.3": "更新方塊實體與連接",
-  "streaming.enabled": "串流剪貼簿已啟用：上限 ${0} 格，每 tick 預算 ${1} 毫秒；壓縮與磁碟讀寫在背景執行。"
+  "streaming.enabled": "串流剪貼簿已啟用：上限 ${0} 格，每 tick 預算 ${1} 毫秒；壓縮與磁碟讀寫在背景執行。",
+  "smooth.invalid-time-budget": "smooth.tick-millis=${0} 必須大於 0。",
+  "smooth.water-protected": "新增的岸邊水域會覆蓋 X=${0}、Z=${1} 的受保護地表方塊；尚未修改任何方塊。",
+  "smooth.water-level-conflict": "平滑會接通 Y=${0} 與 Y=${1} 的不同水位，請分開選取這些水域；尚未修改任何方塊。",
+  "smooth.invalid-liquid-terrain": "smooth.terrain-ids 不能包含水或岩漿（8、9、10、11）；水位由平滑流程另外處理。"
 }
