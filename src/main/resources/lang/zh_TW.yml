@@ -202,5 +202,10 @@
   "selection.help": "WorldEdit 選區說明（4/4）\n  //size [-c] - 查看選區或剪貼簿尺寸\n  //expand <amount> [reverse-amount] [direction] | //expand vert\n  //contract <amount> [reverse-amount] [direction]\n  //shift <amount> [direction] - 只平移選區\n  //outset <amount> [-h|-v] - 向外擴張各面\n  //inset <amount> [-h|-v] - 向內收縮各面\n",
   "selection.contract.description": "將選區朝指定方向收縮",
   "selection.shift.description": "平移選區，不移動方塊",
-  "selection.inset.description": "向內收縮選區各面"
+  "selection.inset.description": "向內收縮選區各面",
+  "smooth.invalid-iterations": "平滑次數 ${0} 無效；請使用 1～${1}（smooth.max-iterations）。",
+  "smooth.invalid-budget": "smooth.max-blocks=${0} 或 smooth.blocks-per-tick=${1} 設定無效，兩者都必須大於 0。",
+  "smooth.invalid-terrain": "smooth.terrain-ids 必須包含地形方塊 ID，且不能包含空氣（0）。",
+  "smooth.selection-limit": "選區共有 ${0} 格，超過 smooth.max-blocks=${1}。",
+  "smooth.world-height": "選區高度必須介於 ${0}～${1}。"
 }
