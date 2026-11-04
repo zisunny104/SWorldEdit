@@ -53,7 +53,7 @@ public class SphereCommand extends WECommand {
 
             Position center = p.getPosition();
 
-            WorldUtils.sphereAsync(dat, center, radius, block)
+            track(dat, WorldUtils.sphereAsync(dat, center, radius, block))
                     .thenAccept(blocksChanged -> {
                         p.sendMessage(Messages.text("text.successfully.created.sphere.with.blocks", blocksChanged));
                     })

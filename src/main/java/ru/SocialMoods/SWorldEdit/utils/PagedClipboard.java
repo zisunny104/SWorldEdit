@@ -67,9 +67,15 @@ public final class PagedClipboard implements AutoCloseable {
             return id;
         }
 
-        Block block(Cell cell) {
+        private Block prototype(Cell cell) {
             if (cell.state < 0 || cell.state >= prototypes.size()) throw new IllegalArgumentException("Invalid clipboard state index");
-            Block result = prototypes.get(cell.state).clone();
+            return prototypes.get(cell.state);
+        }
+
+        int blockId(Cell cell){return prototype(cell).getId();}
+
+        Block block(Cell cell) {
+            Block result = prototype(cell).clone();
             result.setComponents(cell.x, cell.y, cell.z);
             return result;
         }

@@ -100,7 +100,7 @@ public final class StreamingClipboard implements AutoCloseable {
         if (jobs.size() >= settings.maxJobs || allocates && !replaces && stores.size() >= settings.maxStores)
             throw new IllegalStateException(Messages.text("streaming.queue-full"));
         jobs.add(job);
-        notice(job.owner, "streaming.queued", jobs.size());
+        job.progress("streaming.queued",jobs.size(),0);
         if (!ticking) { ticking = true; schedule.accept(this::tick); }
         return job.result;
     }
@@ -110,9 +110,12 @@ public final class StreamingClipboard implements AutoCloseable {
         Job job = jobs.peek();
         if (job == null) { ticking = false; return; }
         try {
-            if (!cache.isDone()) { schedule.accept(this::tick); return; }
-            cache.join();
             if (job.cancelled || !available.test(job.level)) throw new CancellationException(Messages.text("streaming.cancelled"));
+            int position=0;
+            for(Job queued:jobs){if(position++>0)queued.progress("streaming.queued",position,0);}
+            if (!cache.isDone()) { job.progress("work.phase.cache",0,0);schedule.accept(this::tick);return; }
+            cache.join();
+            job.publish();
             job.step(System.nanoTime() + settings.tickNanos);
         } catch (Exception | LinkageError e) { job.fail(e); }
         if (job.result.isDone()) { jobs.remove(job); job.cleanup(); }
@@ -128,10 +131,6 @@ public final class StreamingClipboard implements AutoCloseable {
         PageStore store = clipboard.paged.store;
         stores.remove(store);
         io.execute(() -> safeClose(store));
-    }
-
-    private static void notice(PlayerData owner, String key, Object... args) {
-        if (owner.getPlayer() != null && owner.getPlayer().isOnline()) owner.getPlayer().sendMessage(Messages.text(key, args));
     }
 
     private static void safeClose(AutoCloseable resource) {
@@ -161,12 +160,12 @@ public final class StreamingClipboard implements AutoCloseable {
         CompletableFuture<?> pending;
         Consumer<Object> continuation;
         boolean cancelled;
-        long lastNotice;
         PageStore.Writer writer;
         PageStore.Reader reader;
 
         Job(PlayerData owner, Level level) { this.owner = owner; this.level = level; }
         abstract void step(long deadline) throws Exception;
+        abstract void publish();
 
         @SuppressWarnings("unchecked")
         <T> void submit(Callable<T> action, Consumer<T> after) {
@@ -198,10 +197,7 @@ public final class StreamingClipboard implements AutoCloseable {
         }
 
         void progress(String stage, int count, int total) {
-            long now = System.nanoTime();
-            if (now - lastNotice > TimeUnit.SECONDS.toNanos(5)) {
-                lastNotice = now; notice(owner, "streaming.progress", stage, count, total);
-            }
+            owner.getWorkProgress().report(stage,count,total);
         }
 
         void fail(Throwable failure) {
@@ -232,7 +228,7 @@ public final class StreamingClipboard implements AutoCloseable {
 
         @Override void step(long deadline) throws Exception {
             if (!ready() || finishing) return;
-            progress(Messages.text("streaming.copy"), index, total);
+            publish();
             int budget = settings.batch;
             while (index < total && budget-- > 0 && System.nanoTime() < deadline) {
                 int x = (int)(absolute.minX() + index % absolute.width());
@@ -246,7 +242,7 @@ public final class StreamingClipboard implements AutoCloseable {
                 index++;
                 if (page.size() == settings.pageCells) { flush(page); return; }
             }
-            progress(Messages.text("streaming.copy"), index, total);
+            publish();
             if (index == total) {
                 if (!page.isEmpty()) { flush(page); return; }
                 finishing = true;
@@ -257,6 +253,7 @@ public final class StreamingClipboard implements AutoCloseable {
                 });
             }
         }
+        @Override void publish(){progress(finishing?"work.phase.finalize":pending!=null&&!pending.isDone()?"work.phase.io":"streaming.copy",index,total);}
     }
 
     private final class Paste extends Job {
@@ -268,7 +265,7 @@ public final class StreamingClipboard implements AutoCloseable {
         final List<PagedClipboard.Cell> before = new ArrayList<>();
         List<PagedClipboard.Cell> page;
         int cursor, seen, eligible, attempted, phase;
-        boolean eof, opening, registered;
+        boolean eof, registered;
         SelectionBounds undoBounds;
         Previews.Bounds affected;
 
@@ -299,7 +296,7 @@ public final class StreamingClipboard implements AutoCloseable {
         @Override void step(long deadline) throws Exception {
             if (!ready()) return;
             if (phase == 4) return;
-            progress(Messages.text("streaming.phase." + phase), Math.min(seen, visible), visible);
+            publish();
             if (page == null && !eof) { nextPage(); return; }
             int budget = settings.batch;
             while (page != null && cursor < page.size() && budget-- > 0 && System.nanoTime() < deadline) {
@@ -307,8 +304,8 @@ public final class StreamingClipboard implements AutoCloseable {
                 seen++;
                 if (seen > source.paged.count) throw new IOException("Clipboard contains more records than its metadata");
                 if (seen > visible) continue;
-                var block = source.paged.palette.block(cell);
-                if (skipAir && block.getId() == 0) continue;
+                int blockId = source.paged.palette.blockId(cell); // Validate state without cloning during read-only passes.
+                if (skipAir && blockId == 0) continue;
                 Vector3 point = target(cell);
                 if (phase == 0) {
                     eligible++;
@@ -327,7 +324,7 @@ public final class StreamingClipboard implements AutoCloseable {
                     }
                     attempted++;
                     if (recordUndo) undo.applied = attempted; // Include a cell even if its placement fails halfway.
-                    BlockEntities.place(level, point, block, cell.tag());
+                    BlockEntities.place(level, point, source.paged.palette.block(cell), cell.tag());
                     affected = Previews.Bounds.include(affected, point);
                 } else if (phase == 2 && cell.pair()) {
                     var tag = cell.tag();
@@ -335,12 +332,12 @@ public final class StreamingClipboard implements AutoCloseable {
                             point.getFloorY(), Math.toIntExact((long)point.getFloorZ() + tag.getInt("pairz") - tag.getInt("z")));
                     ChestPairs.apply(level, new ChestPairs.Link(point, other));
                 } else if (phase == 3) {
-                    BlockEntities.verify(level, point, block, cell.tag());
+                    BlockEntities.verify(level, point, source.paged.palette.block(cell), cell.tag());
                     for (int side = 0; side < 7; side++) Connections.refresh(level, point, side);
                     budget -= 7;
                 }
             }
-            progress(Messages.text("streaming.phase." + phase), Math.min(seen, visible), visible);
+            publish();
             if (page != null && cursor == page.size()) { page = null; return; }
             if (!eof) return;
             if (seen != source.paged.count) throw new IOException("Clipboard record count does not match metadata");
@@ -366,6 +363,7 @@ public final class StreamingClipboard implements AutoCloseable {
             super.cleanup();
             if (!registered && undo.paged != null) release(undo);
         }
+        @Override void publish(){progress(phase==4?"work.phase.finalize":pending!=null&&!pending.isDone()?"work.phase.io":"streaming.phase."+phase,Math.min(seen,visible),visible);}
     }
 
     private static boolean contains(SelectionBounds bounds, ChestPairs.Point point) {

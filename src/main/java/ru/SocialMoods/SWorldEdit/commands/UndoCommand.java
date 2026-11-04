@@ -26,7 +26,7 @@ public class UndoCommand extends WECommand {
 
             int step = dat.getUndoSteps().size() - 1;
 
-            WorldUtils.undoAsync(dat, step)
+            track(dat, WorldUtils.undoAsync(dat, step))
                     .thenAccept(blocksUndone -> {
                         p.sendMessage(Messages.text("text.successfully.undone.blocks", blocksUndone));
                     })

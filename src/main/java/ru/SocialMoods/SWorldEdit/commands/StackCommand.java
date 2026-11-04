@@ -79,7 +79,7 @@ public class StackCommand extends WECommand {
                 plugin.getConfig().getInt("stack.blocks-per-tick", 512), parsed.skipAir(),
                 task -> plugin.getServer().getScheduler().scheduleDelayedTask(plugin, task, 1));
             busy.add(key);
-            operation.start().whenComplete((changed, error) -> {
+            track(data, operation.start()).whenComplete((changed, error) -> {
                 busy.remove(key);
                 if (error == null) p.sendMessage(Messages.text("text.successfully.stacked.blocks", changed));
                 else p.sendMessage(Messages.text("text.stack.failed.use.undo.for.partial.changes", error.getMessage()));

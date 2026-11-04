@@ -41,7 +41,7 @@ public class SetCommand extends WECommand {
                 return;
             }
 
-            WorldUtils.setAsync(dat, sel.getPosOne(), sel.getPosTwo(), block)
+            track(dat, WorldUtils.setAsync(dat, sel.getPosOne(), sel.getPosTwo(), block))
                     .thenAccept(blocksChanged -> {
                         p.sendMessage(Messages.text("text.successfully.changed.blocks.to", blocksChanged, block.getName()));
                     })

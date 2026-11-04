@@ -76,35 +76,43 @@ public final class StackOperation implements Runnable {
         if (future.isDone()) return;
         try {
             int budget = batchSize;
-            while (read < volume && budget-- > 0) {
+            long deadline=TickBudget.deadline("stack.tick-millis");
+            if(read<volume)player.getWorkProgress().report("work.phase.capture",read,volume);
+            else if(prepared<volume*count)player.getWorkProgress().report("streaming.phase.0",prepared,(long)volume*count);
+            else if(written<volume*count)player.getWorkProgress().report("streaming.phase.1",written,(long)volume*count);
+            else if(pairs!=null && paired<pairs.size()*count)player.getWorkProgress().report("streaming.phase.2",paired,(long)pairs.size()*count);
+            else player.getWorkProgress().report("streaming.phase.3",refreshed,(long)volume*count);
+            while (read < volume && budget-- > 0 && System.nanoTime()<deadline) {
                 int x = read % width;
                 int z = read / width % length;
                 int y = read / width / length;
                 Vector3 position = new Vector3(minX + x, minY + y, minZ + z);
-                var tag = BlockEntities.capture(level, position);
+                Block captured = level.getBlock(position);
+                var tag = BlockEntities.capture(level, position, captured);
                 if (tag != null) tags.put(read, tag);
-                source.add(level.getBlock(position).clone());
+                source.add(captured.clone());
                 read++;
             }
             if (read == volume && pairs == null) {
                 pairs = ChestPairs.plan(tags, index -> new Vector3(minX + index % width,
                         minY + index / width / length, minZ + index / width % length), java.util.Map.of());
             }
-            while (read == volume && prepared < volume * count && budget-- > 0) {
+            while (read == volume && prepared < volume * count && budget-- > 0 && System.nanoTime()<deadline) {
                 int index = prepared % volume, copy = prepared / volume + 1;
                 if (skipAir && source.get(index).getId() == 0) { before.blocks.add(null); prepared++; continue; }
                 Vector3 target = new Vector3(coordinate(minX,width,dx,copy,index % width),
                         coordinate(minY,height,dy,copy,index / width / length),
                         coordinate(minZ,length,dz,copy,index / width % length));
-                var previous = BlockEntities.capture(level,target);
+                Block captured = level.getBlock(target);
+                var previous = BlockEntities.capture(level,target,captured);
                 if (previous != null) {
                     before.blockEntities.put(prepared,previous);
                     ChestPairs.rememberPeer(level,previous,undo.externalChestPairs);
                 }
-                before.blocks.add(level.getBlock(target).clone());
+                before.blocks.add(captured.clone());
                 prepared++;
             }
-            while (prepared == volume * count && written < volume * count && budget-- > 0) {
+            while (prepared == volume * count && written < volume * count && budget-- > 0 && System.nanoTime()<deadline) {
                 int index = written % volume;
                 int copy = written / volume + 1;
                 if (skipAir && source.get(index).getId() == 0) { written++; continue; }
@@ -122,13 +130,13 @@ public final class StackOperation implements Runnable {
                 BlockEntities.place(level, target, source.get(index), tags.get(index));
                 written++; changed++;
             }
-            while (written == volume * count && paired < pairs.size() * count && budget-- > 0) {
+            while (written == volume * count && paired < pairs.size() * count && budget-- > 0 && System.nanoTime()<deadline) {
                 int copy = paired / pairs.size() + 1;
                 ChestPairs.apply(level, pairs.get(paired % pairs.size()).shifted(
                         (long)width * dx * copy, (long)height * dy * copy, (long)length * dz * copy));
                 paired++;
             }
-            while (written == volume * count && paired == pairs.size() * count && refreshed < written && budget-- > 0) {
+            while (written == volume * count && paired == pairs.size() * count && refreshed < written && budget-- > 0 && System.nanoTime()<deadline) {
                 int index = refreshed % volume;
                 int copy = refreshed / volume + 1;
                 if (skipAir && source.get(index).getId() == 0) { refreshed++; side = 0; continue; }

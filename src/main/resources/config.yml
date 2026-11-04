@@ -1,12 +1,17 @@
 stack:
   max-blocks: 100000
   blocks-per-tick: 512
+  tick-millis: 3
+
+progress:
+  interval-seconds: 5 # Heartbeat even while waiting for I/O; no invented overall percent or ETA
 
 language: en_US
 
 clipboard:
   max-blocks: 100000
   blocks-per-tick: 512
+  tick-millis: 3 # Legacy in-memory paste/copy and schematic preparation
   # max-blocks above remains the memory cap for schematic and other legacy editing paths.
   streaming:
     enabled: true
@@ -35,6 +40,7 @@ surface:
   max-checks: 1000000
   max-blocks: 100000
   blocks-per-tick: 512
+  tick-millis: 3
 
 # Embedded BoundingBoxAPI renderer; no additional plugin is required.
 bounding-boxes:

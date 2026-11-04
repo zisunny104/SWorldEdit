@@ -7,15 +7,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import ru.SocialMoods.SWorldEdit.commands.*;
-import ru.SocialMoods.SWorldEdit.commands.geometry.*;
 import ru.SocialMoods.SWorldEdit.repository.SchematicRepository;
 import ru.SocialMoods.SWorldEdit.repository.impl.SchematicRepositoryImpl;
 import ru.SocialMoods.SWorldEdit.service.SchematicService;
 import ru.SocialMoods.SWorldEdit.service.impl.SchematicServiceImpl;
 
-@Slf4j
 public class SWorldEdit extends PluginBase {
 
     private final Map<String, PlayerData> players = new HashMap<>();
@@ -24,6 +21,7 @@ public class SWorldEdit extends PluginBase {
     @Getter private SchematicRepository schematicRepository;
     @Getter private SchematicService schematicService;
     @Getter private ru.SocialMoods.SWorldEdit.utils.StreamingClipboard streamingClipboard;
+    @Getter private ru.SocialMoods.SWorldEdit.utils.WorkTracker workTracker;
 
     @Override
     public void onEnable() {
@@ -33,6 +31,10 @@ public class SWorldEdit extends PluginBase {
                 message -> getLogger().warning(message));
 
         try {
+            workTracker = new ru.SocialMoods.SWorldEdit.utils.WorkTracker(
+                task -> getServer().getScheduler().scheduleDelayedTask(this,task,1),
+                (owner,message) -> { if(owner.getPlayer()!=null && owner.getPlayer().isOnline())owner.getPlayer().sendMessage(message); },
+                getConfig().getInt("progress.interval-seconds",5),System::nanoTime);
             if (getConfig().getBoolean("clipboard.streaming.enabled", true)) {
                 streamingClipboard = new ru.SocialMoods.SWorldEdit.utils.StreamingClipboard(
                     new ru.SocialMoods.SWorldEdit.utils.StreamingClipboard.Settings(
@@ -71,6 +73,7 @@ public class SWorldEdit extends PluginBase {
     @Override
     public void onDisable() {
         try {
+            if (workTracker != null) workTracker.close();
             if (streamingClipboard != null) streamingClipboard.close();
             if (boundingBoxes != null) boundingBoxes.close();
             this.getLogger().info(Messages.text("text.sworldedit.has.been.disabled"));

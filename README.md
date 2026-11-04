@@ -120,6 +120,26 @@ language. Missing entries fall back to English. `${0}`, `${1}`, etc. are literal
 replacement arguments; preserve them when translating. Tool identifiers and block
 names supplied by the core are not translated by the plugin.
 
+### Long-running work feedback
+Editing commands immediately acknowledge accepted work, then report the current stage,
+stage-local counts/percentage and elapsed time every `progress.interval-seconds` (default 5).
+Queueing, background disk/compression, schematic reads/writes and final publication remain
+visible while waiting. Stages without a known total do not invent a percentage or ETA.
+After three reporting intervals without a changed snapshot, the message explicitly says no
+new progress has been reported; this is a notice, not automatic cancellation.
+
+One tracked edit per player prevents accidental overlapping commands; selection/help tools
+remain available. Completion/error callbacks return to the server tick, including schematic
+I/O. A single tick monitor runs only while tracked work exists. If the server thread itself
+is blocked, this monitor cannot send messages until that thread resumes.
+
+`clipboard.tick-millis`, `stack.tick-millis` and `surface.tick-millis` default to 3 and
+supplement their batch limits. Schematic block preparation and classic paste coordinate
+validation now yield between batches. Soft budgets cannot interrupt a single core call or
+the remaining classic chest-pair planning pass. The legacy set/walls/geometry/rotate paths
+still lack safe server-thread world access and detailed counters: their heartbeat identifies
+that limitation instead of displaying fabricated progress. See TODO.md for the remaining P0 work.
+
 ### Clipboard air and connections
 Copy captures the entire selected primary block layer, including air. `//paste` includes
 air; `//paste -a` skips air. A clipboard remains reusable after pasting. Copy publishes
@@ -202,7 +222,7 @@ Configure `bounding-boxes.selection-enabled`, `selection-seconds` (0 means until
 | 筆刷與工具 | 唯讀 tool info 已有 | brush、sphere／smooth brush、筆刷尺寸／材質／遮罩、超級鎬等 | 依賴遮罩與共用編輯流程 |
 | Schematic | 自有壓縮 NBT 格式，含整數 ID 及支援的方塊實體 | Sponge／FAWE 格式、格式選擇、列表、跨核心與 Java／Bedrock 資料轉換 | 不能把檔案副檔名當成格式相容 |
 | 生態域與世界生成 | 尚缺 | biome 查詢／編輯、regen、樹木／植被、礦脈／洞穴等 | 依賴核心版本與生成器 |
-| 主執行緒與工作控制 | clipboard、stack、smooth、surface 已分批處理 | set、walls、geometry、rotate 仍有舊 AsyncTask 路徑；未統一取消、逾時、進度與互斥 | 優先處理既有實作缺口 |
+| 主執行緒與工作控制 | 共用開始、階段、耗時及停滯提示；單玩家編輯互斥；新流程有格數／時間預算 | set、walls、geometry、rotate 仍在背景存取世界；舊歷史與執行器生命週期也待統一 | P0，需獨立改寫 |
 | 權限與參數提示 | 共用 we.command（預設 OP）、已宣告參數與候選 | FAWE 細分權限、個人限制與管理設定介面 | 分批 |
 | 多語系 | 獨立 en_US／zh_TW、覆寫與英文備援已有 | 玩家個別語系、更多語系及核心名稱翻譯 | 部分 |
 | 快照、腳本與外部服務 | 尚缺 | snapshot／restore、CraftScript、圖片生成地形、遠端資源等 | 非目前首要範圍 |

@@ -53,6 +53,12 @@ public abstract class WECommand extends Command {
                 return false;
             }
 
+            var tracker=SWorldEdit.get().getWorkTracker();
+            if(longRunning()){
+                if(tracker!=null && tracker.busy(wePlayerData)){player.sendMessage(Messages.text("work.busy"));return false;}
+                wePlayerData.getWorkProgress().report("work.phase.running",0,0);
+            }
+
             this.execute(player, wePlayerData, args);
 
         } catch (Exception e) {
@@ -93,4 +99,14 @@ public abstract class WECommand extends Command {
     }
 
     public abstract void execute(cn.nukkit.Player player, PlayerData wePlayerData, String[] args);
+
+    private boolean longRunning(){
+        return java.util.Set.of("/copy","/paste","/undo","/cut","/set","/replace","/walls","/rotate",
+                "/cyl","/hcyl","/sphere","/hsphere","/smooth","/stack","green","/naturalize","/schem").contains(getName());
+    }
+
+    protected <T> java.util.concurrent.CompletableFuture<T> track(PlayerData owner,java.util.concurrent.CompletableFuture<T> work){
+        var plugin=SWorldEdit.get();
+        return plugin==null || plugin.getWorkTracker()==null?work:plugin.getWorkTracker().watch(owner,"/"+getName(),work);
+    }
 }

@@ -41,7 +41,7 @@ public class WallsCommand extends WECommand {
                 return;
             }
 
-            WorldUtils.wallsAsync(sel.getPosOne(), sel.getPosTwo(), block)
+            track(dat, WorldUtils.wallsAsync(sel.getPosOne(), sel.getPosTwo(), block))
                     .thenAccept(blocksChanged -> {
                         p.sendMessage(Messages.text("text.successfully.created.walls.with.blocks", blocksChanged));
                     })

@@ -31,7 +31,7 @@ public final class SmoothCommand extends WECommand {
                 plugin.getConfig().getBoolean("smooth.underwater",true),plugin.getConfig().getInt("smooth.tick-millis",3),
                 task->plugin.getServer().getScheduler().scheduleDelayedTask(plugin,task,1));
             busy.add(id);
-            work.start().whenComplete((count,error)->{
+            track(data, work.start()).whenComplete((count,error)->{
                 busy.remove(id);
                 player.sendMessage(error==null?Messages.text("smooth.success",count):Messages.text("smooth.failed",error.getMessage()));
             });

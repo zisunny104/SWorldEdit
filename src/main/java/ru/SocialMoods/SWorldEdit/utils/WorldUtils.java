@@ -109,8 +109,10 @@ public class WorldUtils {
     }
 
     public static CompletableFuture<Integer> copyAsync(PlayerData owner, Position pos1, Position pos2, Vector3 center, BlocksArray copy) {
-        var engine = SWorldEdit.get().getStreamingClipboard();
-        return engine == null ? copyAsync(pos1, pos2, center, copy) : engine.copy(owner, pos1, pos2, center, copy);
+        var plugin=SWorldEdit.get();var engine = plugin.getStreamingClipboard();
+        return engine == null ? ClipboardOperation.copy(owner,pos1,pos2,center,copy,
+                plugin.getConfig().getInt("clipboard.max-blocks",100000),plugin.getConfig().getInt("clipboard.blocks-per-tick",512),
+                task->plugin.getServer().getScheduler().scheduleDelayedTask(plugin,task,1)) : engine.copy(owner, pos1, pos2, center, copy);
     }
 
     public static CompletableFuture<Integer> pasteAsync(PlayerData dat, Position center, BlocksArray copy) {

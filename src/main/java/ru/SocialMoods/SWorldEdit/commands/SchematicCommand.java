@@ -38,7 +38,7 @@ public class SchematicCommand extends WECommand {
         switch (action) {
             case "save" -> {
                 player.sendMessage(Messages.text("text.saving.schematic"));
-                schematicService.save(dat, name).whenComplete((v, ex) -> {
+                track(dat, schematicService.save(dat, name)).whenComplete((v, ex) -> {
                     if (ex != null) {
                         log.error("Error while saving schematic {}", name, ex);
                         player.sendMessage(Messages.text("text.error", ex.getMessage()));
@@ -53,7 +53,7 @@ public class SchematicCommand extends WECommand {
                 int z = player.getFloorZ();
                 var center = player.getLevel().getBlock(x, y, z).getLocation();
                 player.sendMessage(Messages.text("text.loading.schematic"));
-                schematicService.load(dat, center, name).whenComplete((placed, ex) -> {
+                track(dat, schematicService.load(dat, center, name)).whenComplete((placed, ex) -> {
                     if (ex != null) {
                         log.error("Error while pasting schematic {}", name, ex);
                         player.sendMessage(Messages.text("text.error", ex.getMessage()));

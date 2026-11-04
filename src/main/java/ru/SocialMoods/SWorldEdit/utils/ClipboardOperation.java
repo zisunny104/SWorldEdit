@@ -17,6 +17,11 @@ public final class ClipboardOperation {
 
     public static CompletableFuture<Integer> copy(Position first, Position second, Vector3 origin,
             BlocksArray output, int limit, int batch, Consumer<Runnable> schedule) {
+        return copy(null,first,second,origin,output,limit,batch,schedule);
+    }
+
+    public static CompletableFuture<Integer> copy(PlayerData owner,Position first, Position second, Vector3 origin,
+            BlocksArray output, int limit, int batch, Consumer<Runnable> schedule) {
         if (first.level == null || first.level != second.level) throw new IllegalArgumentException("Select positions in the same world");
         Level level = first.level;
         int minX = Math.min(first.getFloorX(), second.getFloorX()), minY = Math.min(first.getFloorY(), second.getFloorY()), minZ = Math.min(first.getFloorZ(), second.getFloorZ());
@@ -34,8 +39,10 @@ public final class ClipboardOperation {
             int index;
             @Override public void run() {
                 try {
+                    long deadline=TickBudget.deadline("clipboard.tick-millis");
+                    if(owner!=null)owner.getWorkProgress().report("work.phase.capture",index,volume);
                     int end = (int)Math.min((long)volume, (long)index + batch);
-                    while (index < end) {
+                    while (index < end && System.nanoTime()<deadline) {
                         int x = index % width, z = index / width % length, y = index / width / length;
                         Vector3 position = new Vector3(minX + x, minY + y, minZ + z);
                         Block source = level.getBlock(position);
@@ -67,45 +74,56 @@ public final class ClipboardOperation {
     private static CompletableFuture<Integer> paste(PlayerData player, Position center, BlocksArray clipboard,
             boolean skipAir, int limit, int batch, Consumer<Runnable> schedule, boolean recordUndo) {
         if (center.level == null || batch < 1) throw new IllegalArgumentException("Invalid paste destination or batch size");
+        if(clipboard.paged!=null)throw new IllegalArgumentException("Paged clipboard requires the streaming paste API");
+        if(clipboard.blocks.size()>limit)throw new IllegalArgumentException("Clipboard exceeds configured limit");
         Level level = center.level;
+        int originX=center.getFloorX(),originY=center.getFloorY(),originZ=center.getFloorZ();
         List<Block> snapshot = List.copyOf(clipboard.blocks);
         java.util.Map<Integer, cn.nukkit.nbt.tag.CompoundTag> tags = new java.util.HashMap<>();
         clipboard.blockEntities.forEach((index, tag) -> tags.put(index, tag.clone()));
-        if (snapshot.size() > limit) throw new IllegalArgumentException("Clipboard exceeds configured limit");
         List<Vector3> targets = new ArrayList<>(snapshot.size());
-        for (Block block : snapshot) {
-            int x = Math.toIntExact((long)center.getFloorX() + block.getFloorX());
-            int y = Math.toIntExact((long)center.getFloorY() + block.getFloorY());
-            int z = Math.toIntExact((long)center.getFloorZ() + block.getFloorZ());
-            if (y < level.getMinBlockY() || y > level.getMaxBlockY()) throw new IllegalArgumentException("Paste exceeds world height");
-            targets.add(new Vector3(x, y, z));
-        }
-        List<ChestPairs.Link> pairs = ChestPairs.plan(tags, targets::get,
-                recordUndo ? java.util.Map.of() : clipboard.externalChestPairs);
         BlocksArray undo = new BlocksArray();
         List<Block> before = new ArrayList<>(java.util.Collections.nCopies(snapshot.size(), null));
         java.util.Map<Integer,cn.nukkit.nbt.tag.CompoundTag> beforeTags = new java.util.HashMap<>();
         CompletableFuture<Integer> future = new CompletableFuture<>();
         Runnable work = new Runnable() {
-            int prepared, index, pairIndex, refreshIndex, side, placed;
+            int validated,prepared, index, pairIndex, refreshIndex, side, placed;
+            List<ChestPairs.Link> pairs;
             boolean registered, validationQueued;
             Previews.Bounds affected;
             @Override public void run() {
                 try {
                     int budget = batch;
+                    long deadline=TickBudget.deadline("clipboard.tick-millis");
+                    if(validated<snapshot.size())player.getWorkProgress().report("work.phase.validate",validated,snapshot.size());
+                    else if(prepared<snapshot.size())player.getWorkProgress().report("streaming.phase.0",prepared,snapshot.size());
+                    else if(index<snapshot.size())player.getWorkProgress().report("streaming.phase.1",index,snapshot.size());
+                    else if(pairs!=null && pairIndex<pairs.size())player.getWorkProgress().report("streaming.phase.2",pairIndex,pairs.size());
+                    else player.getWorkProgress().report("streaming.phase.3",refreshIndex,targets.size());
+                    while(validated<snapshot.size() && budget-->0 && System.nanoTime()<deadline){
+                        Block block=snapshot.get(validated++);
+                        int x=Math.toIntExact((long)originX+block.getFloorX());
+                        int y=Math.toIntExact((long)originY+block.getFloorY());
+                        int z=Math.toIntExact((long)originZ+block.getFloorZ());
+                        if(y<level.getMinBlockY() || y>level.getMaxBlockY())throw new IllegalArgumentException("Paste exceeds world height");
+                        targets.add(new Vector3(x,y,z));
+                    }
+                    if(validated<snapshot.size()){schedule.accept(this);return;}
+                    if(pairs==null)pairs=ChestPairs.plan(tags,targets::get,recordUndo?java.util.Map.of():clipboard.externalChestPairs);
                     // Snapshot every destination before unpairing either half of any existing chest.
-                    while (prepared < snapshot.size() && budget-- > 0) {
+                    while (prepared < snapshot.size() && budget-- > 0 && System.nanoTime()<deadline) {
                         int cursor = prepared++;
                         if (skipAir && snapshot.get(cursor).getId() == 0) continue;
                         Vector3 target = targets.get(cursor);
-                        var previous = BlockEntities.capture(level, target);
+                        Block captured=level.getBlock(target);
+                        var previous = BlockEntities.capture(level, target,captured);
                         if (previous != null) {
                             beforeTags.put(cursor, previous);
                             if (recordUndo) ChestPairs.rememberPeer(level, previous, undo.externalChestPairs);
                         }
-                        before.set(cursor, level.getBlock(target).clone());
+                        before.set(cursor, captured.clone());
                     }
-                    while (prepared == snapshot.size() && index < snapshot.size() && budget-- > 0) {
+                    while (prepared == snapshot.size() && index < snapshot.size() && budget-- > 0 && System.nanoTime()<deadline) {
                         Block block = snapshot.get(index);
                         Vector3 target = targets.get(index++);
                         if (skipAir && block.getId() == 0) continue;
@@ -117,14 +135,14 @@ public final class ClipboardOperation {
                         placed++;
                         affected = Previews.Bounds.include(affected,target);
                     }
-                    while (index == snapshot.size() && pairIndex < pairs.size() && budget-- > 0) {
+                    while (index == snapshot.size() && pairIndex < pairs.size() && budget-- > 0 && System.nanoTime()<deadline) {
                         ChestPairs.apply(level, pairs.get(pairIndex++));
                     }
                     if (index == snapshot.size() && pairIndex == pairs.size() && !validationQueued) {
                         validationQueued = true; schedule.accept(this); return;
                     }
                     // Pair restoration and every placement precede connection refresh.
-                    while (index == snapshot.size() && pairIndex == pairs.size() && refreshIndex < targets.size() && budget-- > 0) {
+                    while (index == snapshot.size() && pairIndex == pairs.size() && refreshIndex < targets.size() && budget-- > 0 && System.nanoTime()<deadline) {
                         if (skipAir && snapshot.get(refreshIndex).getId() == 0) { refreshIndex++; side = 0; continue; }
                         if (side == 0) BlockEntities.verify(level, targets.get(refreshIndex), snapshot.get(refreshIndex), tags.get(refreshIndex));
                         Connections.refresh(level, targets.get(refreshIndex), side++);
@@ -146,6 +164,7 @@ public final class ClipboardOperation {
     public static CompletableFuture<Integer> undo(PlayerData player, int step, int batch, Consumer<Runnable> schedule) {
         if (step < 0 || step >= player.undoSteps.size()) return CompletableFuture.completedFuture(0);
         BlocksArray original = player.undoSteps.get(step);
+        if(original.paged!=null)throw new IllegalArgumentException("Paged undo requires the streaming undo API");
         if (original.blocks.isEmpty()) { player.undoSteps.remove(original); return CompletableFuture.completedFuture(0); }
         Level level = original.blocks.get(0).level;
         return paste(player, new Position(0, 0, 0, level), original, false, Integer.MAX_VALUE, batch, schedule, false)

@@ -11,6 +11,7 @@ public class PlayerData {
     private cn.nukkit.Player player;
     private final Selection selection;
     private final ru.SocialMoods.SWorldEdit.utils.ToolBindings tools = new ru.SocialMoods.SWorldEdit.utils.ToolBindings();
+    private final ru.SocialMoods.SWorldEdit.utils.WorkProgress workProgress = new ru.SocialMoods.SWorldEdit.utils.WorkProgress();
     public BlocksArray copiedBlocks = null;
     public final ArrayList<BlocksArray> undoSteps = new ArrayList<>();
 

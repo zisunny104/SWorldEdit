@@ -121,7 +121,7 @@ final class BlockEntities {
     static void place(Level level, Vector3 target, Block block, CompoundTag source) {
         Block previous = level.getBlock(target);
         if (previous != null) previous = previous.clone();
-        CompoundTag previousTag = previous == null ? null : capture(level, target);
+        CompoundTag previousTag = previous == null ? null : capture(level, target, previous);
         close(level, target);
         BlockSnapshots.place(level, target, block, false);
         String expected = type(block);

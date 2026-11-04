@@ -30,7 +30,7 @@ public class CutCommand extends WECommand {
 
             Block airBlock = new BlockAir();
 
-            WorldUtils.setAsync(dat, sel.getPosOne(), sel.getPosTwo(), airBlock)
+            track(dat, WorldUtils.setAsync(dat, sel.getPosOne(), sel.getPosTwo(), airBlock))
                     .thenAccept(blocksChanged -> {
                         p.sendMessage(Messages.text("text.successfully.removed.blocks", blocksChanged));
                     })

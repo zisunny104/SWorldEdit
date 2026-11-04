@@ -38,7 +38,7 @@ public class PasteCommand extends WECommand {
 
             Position pastePosition = new Position(p.getX(), p.getY(), p.getZ(), p.getLevel());
 
-            WorldUtils.pasteAsync(dat, pastePosition, copy, skipAir)
+            track(dat, WorldUtils.pasteAsync(dat, pastePosition, copy, skipAir))
                     .thenAccept(blocksPasted -> {
                         p.sendMessage(Messages.text("text.successfully.pasted.blocks", blocksPasted));
                     })
