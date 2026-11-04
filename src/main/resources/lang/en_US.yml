@@ -207,5 +207,17 @@
   "smooth.invalid-budget": "Invalid smooth.max-blocks=${0} or smooth.blocks-per-tick=${1}; both must be positive.",
   "smooth.invalid-terrain": "smooth.terrain-ids must contain terrain IDs and must not include air (0).",
   "smooth.selection-limit": "Selection has ${0} blocks; smooth.max-blocks is ${1}.",
-  "smooth.world-height": "Selection must stay within world height ${0} to ${1}."
+  "smooth.world-height": "Selection must stay within world height ${0} to ${1}.",
+  "streaming.limit": "Selection has ${0} blocks; clipboard.streaming.max-blocks is ${1}.",
+  "streaming.busy": "Your previous clipboard operation is still running or queued.",
+  "streaming.queue-full": "Clipboard queue or retained clipboard quota is full; retry later or undo/release older work.",
+  "streaming.queued": "Clipboard operation queued, position ${0}.",
+  "streaming.cancelled": "Clipboard operation cancelled because the player, world or plugin became unavailable. Completed edits can still be undone.",
+  "streaming.progress": "${0}: ${1} / ${2}",
+  "streaming.copy": "Copying",
+  "streaming.phase.0": "Validating and saving undo",
+  "streaming.phase.1": "Pasting",
+  "streaming.phase.2": "Restoring container pairs",
+  "streaming.phase.3": "Updating block entities and connections",
+  "streaming.enabled": "Streaming clipboard enabled: up to ${0} blocks, ${1} ms per tick; compression and disk I/O run in the background."
 }

@@ -105,10 +105,34 @@ names supplied by the core are not translated by the plugin.
 Copy captures the entire selected primary block layer, including air. `//paste` includes
 air; `//paste -a` skips air. A clipboard remains reusable after pasting. Copy publishes
 only after completion and preserves the previous clipboard if it fails. Copy, paste and
-undo run in server-thread batches, configured by `clipboard.max-blocks` (default 100000)
-and `clipboard.blocks-per-tick` (default 512). Once placement finishes, paste, stack and
+undo run in server-thread batches. `clipboard.blocks-per-tick` defaults to 512; the
+streaming pipeline also yields after `clipboard.streaming.tick-millis` (default 3 ms).
+A single world/chunk call cannot be preempted. Once placement finishes, paste, stack and
 undo refresh connection-dependent blocks at the destination and its immediate boundary.
 The primary layer now includes block entity NBT; extra layers remain outside this scope.
+
+`clipboard.streaming.enabled` defaults to true for `//copy`, paged `//paste` and their
+`//undo` history. Compressed detached pages and disk reads run on one background worker;
+world reads/writes stay on the server thread. Only one page is in flight per active job.
+The queue defaults to 4 jobs, with one job per player; destination recovery data is fully
+prepared before placement, and a failed partial paste retains the attempted prefix for Undo.
+Repeated paste and `-a` are supported, including NBT and chest pairing across pages.
+
+Defaults: `clipboard.streaming.max-blocks` 50,000,000; `page-cells` 2048 (max 4096);
+`memory-bytes` 1 MiB of compressed pages plus page bookkeeping before spilling;
+`disk-bytes` 1 GiB per file; `reserve-bytes` 512 MiB free disk; `max-states` 8192 native
+prototypes; `max-history` 10 per player and `max-stores` 128 retained stores overall.
+Memory also includes bounded decoded pages and native prototypes. Unknown mutable native
+state is not silently merged by numeric ID; a palette limit aborts instead of losing state.
+These are finite resource limits, not unlimited FAWE compatibility.
+
+Cache files under `clipboard-cache/` are **session-only**, including disk Undo: they do not
+survive plugin reload or server restart as usable history. Startup removes abandoned owned
+session files using locks, leaves active/unknown files alone and never resumes world edits.
+Do not reload during an edit. Disabling the plugin cancels jobs and closes cache files.
+`clipboard.max-blocks` remains 100,000 for schematic/legacy in-memory editing paths;
+stack, smooth and surface also retain their separate limits. Increasing the streaming
+limit does not increase these limits. General entities and additional block layers are not copied.
 
 ### Block entity NBT
 Copy/paste, stack and their undo records capture deep-cloned block entity NBT after
@@ -149,12 +173,12 @@ Configure `bounding-boxes.selection-enabled`, `selection-seconds` (0 means until
 | 選點輸入 | 玩家目前位置、工具點擊已有 | pos 座標參數、hpos、chunk、選區模式切換 | 後續 |
 | 方塊統計 | size 可看體積與剪貼簿尺寸 | count、distr、搜尋與分布分析 | 下一批候選 |
 | 填滿、替換、牆與幾何 | set、replace、walls、球與圓柱已有 | faces、outline、hollow、overlay、center、line、curve、錐體／金字塔；既有圓柱參數也不完整 | 分批 |
-| 剪貼簿 | copy、cut、可重複 paste、略過空氣、主要層狀態及支援的 NBT 已有 | 原點／選區旗標、一般實體、生態域及額外方塊層 | 分批 |
+| 剪貼簿 | copy、可重複 paste、略過空氣、主要層狀態及 NBT；大型資料串流落盤 | cut 目前僅清除選區，尚不等同 FAWE 剪下；原點旗標、實體、生態域及額外層仍缺 | 分批 |
 | 旋轉、翻轉與移動 | 既有 rotate 操作選區世界，並非 FAWE 的剪貼簿旋轉 | clipboard rotate／flip、move；方向狀態與 NBT 轉向須驗證，不能只旋轉座標 | 先確認相容語意 |
 | 堆疊 | count、方向、視線方向、略過空氣、NBT、復原已有 | 其餘旗標、來源遮罩、一般實體等 | 部分 |
 | 地形與草地 | smooth、green、naturalize 已有本機實作 | 尚無 smooth brush、任意地形遮罩；保護規則與 FAWE 不完全相同 | 待遊戲驗證 |
 | 水、雪與附近方塊工具 | 尚缺 | drain、fixwater／fixlava、snow／thaw、removenear／replacenear、removeabove／below | 先核對核心物理更新 |
-| 歷史 | 本次執行期間的單步 undo 已有 | redo、多步、清除、持久化／跨重啟歷史與他人歷史 | 需先設計前後快照與記憶體上限 |
+| 歷史 | 本次執行期間逐次 undo，大型剪貼簿 Undo 落盤且有保留上限 | redo、一次多步、清除、跨重啟與他人歷史 | 後續 |
 | 遮罩與材質樣式 | 只支援單一方塊名稱、ID 與附加資料；少數指令有略過空氣 | 條件遮罩、交集／聯集、比例隨機材質與樣式解析器 | 共用層優先 |
 | 筆刷與工具 | 唯讀 tool info 已有 | brush、sphere／smooth brush、筆刷尺寸／材質／遮罩、超級鎬等 | 依賴遮罩與共用編輯流程 |
 | Schematic | 自有壓縮 NBT 格式，含整數 ID 及支援的方塊實體 | Sponge／FAWE 格式、格式選擇、列表、跨核心與 Java／Bedrock 資料轉換 | 不能把檔案副檔名當成格式相容 |

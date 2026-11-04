@@ -64,7 +64,8 @@ public final class SelectionCommand extends WECommand {
         };
     }
     private static SelectionBounds clipboard(PlayerData data){
-        if(data.copiedBlocks==null || data.copiedBlocks.blocks.isEmpty())throw new IllegalArgumentException(Messages.text("selection.empty-clipboard"));
+        if(data.copiedBlocks==null || data.copiedBlocks.isEmpty())throw new IllegalArgumentException(Messages.text("selection.empty-clipboard"));
+        if(data.copiedBlocks.pagedBounds()!=null)return data.copiedBlocks.pagedBounds();
         int minX=Integer.MAX_VALUE,minY=Integer.MAX_VALUE,minZ=Integer.MAX_VALUE,maxX=Integer.MIN_VALUE,maxY=Integer.MIN_VALUE,maxZ=Integer.MIN_VALUE;
         for(Block block:data.copiedBlocks.blocks){minX=Math.min(minX,block.getFloorX());minY=Math.min(minY,block.getFloorY());minZ=Math.min(minZ,block.getFloorZ());maxX=Math.max(maxX,block.getFloorX());maxY=Math.max(maxY,block.getFloorY());maxZ=Math.max(maxZ,block.getFloorZ());}
         return new SelectionBounds(minX,minY,minZ,maxX,maxY,maxZ);
@@ -74,7 +75,7 @@ public final class SelectionCommand extends WECommand {
         try{
             var parsed=parse(kind,args);
             if(parsed.clipboard()){
-                var b=clipboard(data);player.sendMessage(Messages.text("selection.clipboard-size",b.width(),b.height(),b.length(),b.volume(),data.copiedBlocks.blocks.size()));return;
+                var b=clipboard(data);player.sendMessage(Messages.text("selection.clipboard-size",b.width(),b.height(),b.length(),b.volume(),data.copiedBlocks.size()));return;
             }
             if(!data.hasSelection()){player.sendMessage(Messages.text("text.please.select.area.first.using.pos1.and.pos2"));return;}
             var selection=data.getSelection();var b=SelectionBounds.of(selection.getPosOne(),selection.getPosTwo());

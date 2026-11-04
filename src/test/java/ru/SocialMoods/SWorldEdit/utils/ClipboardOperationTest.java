@@ -14,6 +14,15 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class ClipboardOperationTest {
+    @Test void copyReadsEachSourceBlockOnce() {
+        BlocksArray output = new BlocksArray();
+        var result = ClipboardOperation.copy(new Position(0,70,0,level),
+                new Position(2,70,0,level), new Vector3(0,70,0), output, 100, 1, queue::add);
+        finish();
+        assertEquals(3, result.join());
+        verify(level, times(3)).getBlock(any(Vector3.class));
+    }
+
     private final Level level = mock(Level.class);
     private final Map<String, Block> world = new HashMap<>();
     private final java.util.concurrent.LinkedBlockingQueue<Runnable> queue = new java.util.concurrent.LinkedBlockingQueue<>();

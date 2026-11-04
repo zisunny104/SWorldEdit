@@ -58,8 +58,12 @@ final class BlockEntities {
     }
 
     static CompoundTag capture(Level level, Vector3 position) {
+        return capture(level, position, level.getBlock(position));
+    }
+
+    static CompoundTag capture(Level level, Vector3 position, Block block) {
         BlockEntity entity = level.getBlockEntity(position);
-        String expected = type(level.getBlock(position));
+        String expected = type(block);
         if (entity == null) return expected == null ? null : clean(position, expected);
         try {
             if (!entity.isBlockEntityValid()) {
