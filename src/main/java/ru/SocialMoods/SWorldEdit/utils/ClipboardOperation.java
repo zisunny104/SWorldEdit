@@ -37,9 +37,11 @@ public final class ClipboardOperation {
                     int end = (int)Math.min((long)volume, (long)index + batch);
                     while (index < end) {
                         int x = index % width, z = index / width % length, y = index / width / length;
-                        var tag = BlockEntities.capture(level, new Vector3(minX + x, minY + y, minZ + z));
+                        Vector3 position = new Vector3(minX + x, minY + y, minZ + z);
+                        Block source = level.getBlock(position);
+                        var tag = BlockEntities.capture(level, position, source);
                         if (tag != null) tags.put(index, tag);
-                        snapshot.add(BlockSnapshots.relative(level, minX + x, minY + y, minZ + z, anchor));
+                        snapshot.add(BlockSnapshots.relative(source, minX + x, minY + y, minZ + z, anchor));
                         index++;
                     }
                     if (index < volume) schedule.accept(this);
