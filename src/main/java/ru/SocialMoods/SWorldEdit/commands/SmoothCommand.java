@@ -20,6 +20,7 @@ public final class SmoothCommand extends WECommand {
         UUID id=player.getUniqueId();
         if(busy.contains(id)){player.sendMessage(Messages.text("smooth.busy"));return;}
         try {
+            if(args.length>1)throw new IllegalArgumentException("Usage: //smooth [iterations]");
             int iterations=args.length==0?1:Integer.parseInt(args[0]);
             SWorldEdit plugin=SWorldEdit.get();
             List<Integer> configured=plugin.getConfig().getIntegerList("smooth.terrain-ids");

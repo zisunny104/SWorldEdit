@@ -6,6 +6,7 @@ import cn.nukkit.level.Level;
 import cn.nukkit.level.Position;
 import cn.nukkit.math.Vector3;
 import ru.SocialMoods.SWorldEdit.PlayerData;
+import ru.SocialMoods.SWorldEdit.i18n.Messages;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -14,13 +15,14 @@ import java.util.function.Consumer;
 public final class SmoothOperation implements Runnable {
     private static final int RADIUS=5;
     private static final double[] WEIGHTS=gaussian();
+    private static final Set<Integer> SURFACE_COVER=Set.of(31,32,37,38,78,175);
     private final PlayerData player;
     private final Level level;
-    private final int x,y,z,width,height,length,area,volume,batch,iterations,limit;
+    private final int x,y,z,width,height,terrainHeight,length,area,volume,batch,iterations,limit;
     private final Set<Integer> terrain;
     private final Consumer<Runnable> schedule;
     private final Block[] blocks;
-    private final int[] tops,bottoms,obstructions;
+    private final int[] tops,bottoms,obstructions,covers,ceilings;
     private double[] heights, next, horizontal;
     private final BlocksArray changes = new BlocksArray();
     private final CompletableFuture<Integer> future = new CompletableFuture<>();
@@ -30,19 +32,30 @@ public final class SmoothOperation implements Runnable {
     public SmoothOperation(PlayerData player, Position first, Position second, int iterations,
             int maxIterations, int limit, int batch, Set<Integer> terrain, Consumer<Runnable> schedule) {
         if (first.level == null || first.level != second.level) throw new IllegalArgumentException("Select positions in the same world");
-        if (iterations < 1 || iterations > maxIterations || batch < 1 || limit < 1 || terrain.isEmpty() || terrain.contains(0))
-            throw new IllegalArgumentException("Invalid smoothing iterations, limits or terrain IDs");
+        if (iterations < 1 || iterations > maxIterations)
+            throw new IllegalArgumentException(Messages.text("smooth.invalid-iterations",iterations,maxIterations));
+        if (batch < 1 || limit < 1)
+            throw new IllegalArgumentException(Messages.text("smooth.invalid-budget",limit,batch));
+        if (terrain.isEmpty() || terrain.contains(0))
+            throw new IllegalArgumentException(Messages.text("smooth.invalid-terrain"));
         this.player=player;this.level=first.level;this.iterations=iterations;this.limit=limit;this.batch=batch;
         this.terrain=Set.copyOf(terrain);this.schedule=schedule;
         x=Math.min(first.getFloorX(),second.getFloorX());y=Math.min(first.getFloorY(),second.getFloorY());z=Math.min(first.getFloorZ(),second.getFloorZ());
         width=Math.toIntExact((long)Math.max(first.getFloorX(),second.getFloorX())-x+1);
-        height=Math.toIntExact((long)Math.max(first.getFloorY(),second.getFloorY())-y+1);
+        terrainHeight=Math.toIntExact((long)Math.max(first.getFloorY(),second.getFloorY())-y+1);
         length=Math.toIntExact((long)Math.max(first.getFloorZ(),second.getFloorZ())-z+1);
-        area=Math.multiplyExact(width,length);volume=Math.multiplyExact(area,height);
-        if(volume>limit || y<level.getMinBlockY() || (long)y+height-1>level.getMaxBlockY())
-            throw new IllegalArgumentException("Selection exceeds smoothing limits or world height");
+        area=Math.multiplyExact(width,length);
+        long selectedVolume=(long)area*terrainHeight;
+        if(selectedVolume>limit) throw new IllegalArgumentException(Messages.text("smooth.selection-limit",selectedVolume,limit));
+        if(y<level.getMinBlockY() || (long)y+terrainHeight-1>level.getMaxBlockY())
+            throw new IllegalArgumentException(Messages.text("smooth.world-height",level.getMinBlockY(),level.getMaxBlockY()));
+        // Two extra capture layers let a boundary-cut plant move as one unit. Terrain stays inside the selection.
+        height=Math.toIntExact(Math.min((long)terrainHeight+2,(long)level.getMaxBlockY()-y+1));
+        volume=Math.multiplyExact(area,height);
         blocks=new Block[volume];tops=new int[area];Arrays.fill(tops,-1);
         bottoms=new int[area];obstructions=new int[area];Arrays.fill(obstructions,-1);
+        covers=new int[area];
+        ceilings=new int[area];Arrays.fill(ceilings,height-1);
         heights=new double[area];Arrays.fill(heights,-1);next=new double[area];horizontal=new double[area];
     }
 
@@ -54,6 +67,22 @@ public final class SmoothOperation implements Runnable {
     }
 
     private boolean usable(int column){return tops[column]>=0 && obstructions[column]<tops[column];}
+
+    private static boolean surfaceCover(Block block) {
+        if(SURFACE_COVER.contains(block.getId()))return true;
+        for(Class<?> c=block.getClass();c!=null;c=c.getSuperclass())
+            if(Set.of("BlockFlower","BlockTallGrass","BlockDoublePlant","BlockDeadBush","BlockSnowLayer").contains(c.getSimpleName()))return true;
+        return false;
+    }
+
+    private static boolean naturalLeaves(Block block) {
+        boolean leaves=block.getId()==18 || block.getId()==161;
+        for(Class<?> c=block.getClass();c!=null&&!leaves;c=c.getSuperclass())leaves=c.getSimpleName().contains("Leaves");
+        if(!leaves)return false;
+        // Use the running core's semantics instead of assuming a persistence metadata bit.
+        try{return Boolean.FALSE.equals(block.getClass().getMethod("isPersistent").invoke(block));}
+        catch(ReflectiveOperationException e){return false;}
+    }
 
     private double filteredHeight(int column){
         int cx=column%width,cz=column/width;
@@ -85,8 +114,8 @@ public final class SmoothOperation implements Runnable {
                 int index=read++, column=index%area, h=index/area;
                 Vector3 position=position(index);
                 Block block=level.getBlock(position).clone();blocks[index]=block;
-                boolean natural=terrain.contains(block.getId());
-                if(level.getBlockEntity(position)!=null || (block.getId()!=0 && !natural))obstructions[column]=h;
+                boolean natural=h<terrainHeight && terrain.contains(block.getId());
+                if(level.getBlockEntity(position)!=null || (block.getId()!=0 && !natural && !surfaceCover(block) && !naturalLeaves(block)))obstructions[column]=h;
                 if(natural){
                     if(h==0 || !terrain.contains(blocks[index-area].getId()) || obstructions[column]>=h-1)bottoms[column]=h;
                     tops[column]=h;heights[column]=h;
@@ -94,8 +123,17 @@ public final class SmoothOperation implements Runnable {
             }
             while(read==volume && pass<iterations && budget-->0) {
                 int c=filtered++;
+                if(pass==0 && !vertical && tops[c]>=0) {
+                    for(int h=tops[c]+1;h<height && surfaceCover(blocks[c+h*area]);h++)covers[c]++;
+                    if(covers[c]>0){
+                        Block firstCover=blocks[c+(tops[c]+1)*area],lastCover=blocks[c+(tops[c]+covers[c])*area];
+                        if(firstCover.getId()==175 && (firstCover.getDamage()&8)!=0 || lastCover.getId()==175 && (lastCover.getDamage()&8)==0)
+                            obstructions[c]=tops[c]; // Never move only half of a plant across the selection boundary.
+                    }
+                    for(int h=tops[c]+1;h<height;h++)if(naturalLeaves(blocks[c+h*area])){ceilings[c]=h-1;break;}
+                }
                 double value=usable(c)?filteredHeight(c):heights[c];
-                if(vertical)next[c]=usable(c)?Math.max(bottoms[c],Math.min(height-1,Math.round(value))):value;
+                if(vertical)next[c]=usable(c)?Math.max(bottoms[c],Math.min(Math.min(terrainHeight-1,ceilings[c]-covers[c]),Math.round(value))):value;
                 else horizontal[c]=value;
                 if(filtered==area){
                     filtered=0;
@@ -116,6 +154,9 @@ public final class SmoothOperation implements Runnable {
                     int source=bottoms[c]+(int)((long)(h-bottoms[c])*(top-bottoms[c])/(target-bottoms[c]));
                     desired=blocks[c+source*area];
                 }
+                // Move the existing surface cover with its ground, including snow thickness and plant metadata.
+                if(h>target && h<=target+covers[c])desired=blocks[c+(top+h-target)*area];
+                else if(h>target && h>top && h<=top+covers[c])desired=new BlockAir();
                 Block original=blocks[index];
                 if(desired.getId()==original.getId() && desired.getDamage()==original.getDamage())continue;
                 Block detached=desired.clone();detached.setComponents(index%width,h,index/width%length);

@@ -202,5 +202,10 @@
   "selection.help": "WorldEdit selection help (4/4)\n  //size [-c] - Selection or clipboard dimensions\n  //expand <amount> [reverse-amount] [direction] | //expand vert\n  //contract <amount> [reverse-amount] [direction]\n  //shift <amount> [direction] - Move selection only\n  //outset <amount> [-h|-v] - Expand faces\n  //inset <amount> [-h|-v] - Contract faces\n",
   "selection.contract.description": "Contract the selection towards a direction",
   "selection.shift.description": "Shift the selection without moving blocks",
-  "selection.inset.description": "Contract all selection faces"
+  "selection.inset.description": "Contract all selection faces",
+  "smooth.invalid-iterations": "Iterations ${0} are invalid; use 1 to ${1} (smooth.max-iterations).",
+  "smooth.invalid-budget": "Invalid smooth.max-blocks=${0} or smooth.blocks-per-tick=${1}; both must be positive.",
+  "smooth.invalid-terrain": "smooth.terrain-ids must contain terrain IDs and must not include air (0).",
+  "smooth.selection-limit": "Selection has ${0} blocks; smooth.max-blocks is ${1}.",
+  "smooth.world-height": "Selection must stay within world height ${0} to ${1}."
 }
