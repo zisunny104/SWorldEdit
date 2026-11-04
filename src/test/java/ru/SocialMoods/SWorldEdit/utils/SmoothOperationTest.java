@@ -25,7 +25,7 @@ class SmoothOperationTest {
         doCallRealMethod().when(b).setComponents(anyDouble(),anyDouble(),anyDouble());
         doCallRealMethod().when(b).getFloorX();doCallRealMethod().when(b).getFloorY();doCallRealMethod().when(b).getFloorZ();
         b.setComponents(x,y,z);b.level=level;
-        when(b.clone()).thenAnswer(c->block(id,b.x,b.y,b.z));return b;
+        when(b.clone()).thenAnswer(c->{int meta=b.getDamage();Block copy=block(id,b.x,b.y,b.z);when(copy.getDamage()).thenReturn(meta);return copy;});return b;
     }
     @BeforeEach void setup(){
         when(level.getMinBlockY()).thenReturn(-64);when(level.getMaxBlockY()).thenReturn(319);
@@ -33,7 +33,7 @@ class SmoothOperationTest {
         when(level.getBlock(any(Vector3.class))).thenAnswer(c->{Vector3 v=c.getArgument(0);return world.getOrDefault(key(v),block(0,v.x,v.y,v.z));});
         when(level.setBlock(any(Vector3.class),any(Block.class),eq(true),eq(false))).thenAnswer(c->{
             Vector3 v=c.getArgument(0);Block b=c.getArgument(1);writes.add(new Vector3(v.x,v.y,v.z));
-            world.put(key(v),block(b.getId(),v.x,v.y,v.z));return true;
+            int meta=b.getDamage();Block copy=block(b.getId(),v.x,v.y,v.z);when(copy.getDamage()).thenReturn(meta);world.put(key(v),copy);return true;
         });
     }
     void terrain(int center,int surrounding){
@@ -58,6 +58,44 @@ class SmoothOperationTest {
     @Test void fillsValleyWithSubsurfaceAndKeepsGrassOnTop(){
         terrain(1,4);var result=operation(1,2).start();finish();assertEquals(3,result.join());
         assertEquals(3,id(71));assertEquals(3,id(72));assertEquals(2,id(73));assertEquals(0,id(74));
+    }
+    @Test void grassAndSnowMoveWithSmoothedSurfaceAndCanBeUndone(){
+        for(int cover:List.of(31,78)){
+            world.clear();writes.clear();player.undoSteps.clear();terrain(4,1);
+            Block cap=block(cover,0,75,0);when(cap.getDamage()).thenReturn(3);world.put("0,75,0",cap);
+            var work=new SmoothOperation(player,new Position(-1,70,-1,level),new Position(1,76,1,level),
+                    1,10,100,2,Set.of(1,2,3),queue::add);
+            var result=work.start();finish();assertTrue(result.join()>0);
+            assertEquals(2,id(72));assertEquals(cover,id(73));assertEquals(3,world.get("0,73,0").getDamage());
+            assertEquals(0,id(75));
+            var undo=ClipboardOperation.undo(player,0,2,queue::add);finish();undo.join();
+            assertEquals(2,id(74));assertEquals(cover,id(75));assertEquals(3,world.get("0,75,0").getDamage());
+        }
+    }
+    @Test void movesBothHalvesOfTallPlant(){
+        terrain(4,1);
+        world.put("0,75,0",block(175,0,75,0));world.put("0,76,0",block(175,0,76,0));
+        when(world.get("0,76,0").getDamage()).thenReturn(8);
+        // Both plant halves are outside the selected terrain height; capture and relocate them together.
+        var work=new SmoothOperation(player,new Position(-1,70,-1,level),new Position(1,74,1,level),
+                1,10,100,2,Set.of(1,2,3),queue::add);
+        var result=work.start();finish();assertTrue(result.join()>0);
+        assertEquals(175,id(73));assertEquals(175,id(74));assertEquals(8,world.get("0,74,0").getDamage());
+        assertEquals(0,id(75));assertEquals(0,id(76));
+    }
+    @Test void naturalCanopyDoesNotExcludeGroundButPersistentLeavesDo(){
+        for(boolean persistent:List.of(false,true)){
+            world.clear();writes.clear();player.undoSteps.clear();terrain(4,1);
+            var leaves=new cn.nukkit.block.BlockLeaves();leaves.setPersistent(persistent);leaves.setComponents(0,75,0);leaves.level=level;
+            world.put("0,75,0",leaves);
+            var work=new SmoothOperation(player,new Position(-1,70,-1,level),new Position(1,76,1,level),
+                    1,10,100,2,Set.of(1,2,3),queue::add);
+            var result=work.start();finish();
+            if(persistent){assertEquals(0,result.join());assertEquals(2,id(74));}
+            else {assertTrue(result.join()>0);assertEquals(2,id(72));}
+            assertSame(leaves,world.get("0,75,0"));
+            assertTrue(writes.stream().noneMatch(v->v.y==75));
+        }
     }
     @Test void repeatedPassesUsePreviousPassAndFlatTerrainIsNoOp(){
         terrain(4,1);var result=operation(2,3).start();finish();assertEquals(4,result.join());assertEquals(2,id(71));
