@@ -56,7 +56,7 @@ public class RotateCommand extends WECommand {
             Position center = new Position(p.getX(), p.getY(), p.getZ(), p.getLevel());
 
             int finalDegrees = degrees;
-            WorldUtils.rotateYAsync(dat, center, sel, degrees)
+            track(dat, WorldUtils.rotateYAsync(dat, center, sel, degrees))
                     .thenAccept(blocksRotated -> {
                         p.sendMessage(Messages.text("text.successfully.rotated.blocks.around.axis.by.degrees", blocksRotated, axis, finalDegrees));
                     })

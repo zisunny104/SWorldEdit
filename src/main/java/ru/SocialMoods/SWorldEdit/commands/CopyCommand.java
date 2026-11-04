@@ -3,14 +3,12 @@ package ru.SocialMoods.SWorldEdit.commands;
 import ru.SocialMoods.SWorldEdit.i18n.Messages;
 
 import cn.nukkit.math.Vector3;
-import lombok.extern.slf4j.Slf4j;
 import ru.SocialMoods.SWorldEdit.PlayerData;
 import ru.SocialMoods.SWorldEdit.utils.BlocksArray;
 import ru.SocialMoods.SWorldEdit.utils.Selection;
 import ru.SocialMoods.SWorldEdit.utils.WorldUtils;
 
 @SuppressWarnings("unused")
-@Slf4j
 public class CopyCommand extends WECommand {
     public CopyCommand() {
         super("/copy", Messages.text("text.copy.area.to.clipboard"));
@@ -29,7 +27,7 @@ public class CopyCommand extends WECommand {
 
             BlocksArray snapshot = new BlocksArray();
 
-            WorldUtils.copyAsync(dat, sel.getPosOne(), sel.getPosTwo(), new Vector3(p.getX(), p.getY(), p.getZ()), snapshot)
+            track(dat, WorldUtils.copyAsync(dat, sel.getPosOne(), sel.getPosTwo(), new Vector3(p.getX(), p.getY(), p.getZ()), snapshot))
                     .thenAccept(blocksCopied -> {
                         BlocksArray previous = dat.copiedBlocks;
                         dat.copiedBlocks = snapshot;

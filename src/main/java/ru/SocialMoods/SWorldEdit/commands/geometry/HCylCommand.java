@@ -53,7 +53,7 @@ public class HCylCommand extends WECommand {
 
             Position center = p.getPosition();
 
-            WorldUtils.hcylAsync(dat, center, radius, block)
+            track(dat, WorldUtils.hcylAsync(dat, center, radius, block))
                     .thenAccept(blocksChanged -> {
                         p.sendMessage(Messages.text("text.successfully.created.hollow.cylinder.with.blocks", blocksChanged));
                     })

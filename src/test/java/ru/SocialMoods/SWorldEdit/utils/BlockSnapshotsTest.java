@@ -34,13 +34,11 @@ class BlockSnapshotsTest {
     }
 
     @Test void copyingUsesDetachedCoreBlockInsteadOfReconstructingIdAndData() {
-        Level level = mock(Level.class);
         Block source = block();
         Block detached = block();
         source.setComponents(-17, 70, 40);
-        when(level.getBlock(any(Vector3.class))).thenReturn(source);
         when(source.clone()).thenReturn(detached);
-        Block result = BlockSnapshots.relative(level, -17, 70, 40, new Vector3(-20, 65, 30));
+        Block result = BlockSnapshots.relative(source, -17, 70, 40, new Vector3(-20, 65, 30));
         assertSame(detached, result);
         assertEquals(3, result.x);
         assertEquals(5, result.y);

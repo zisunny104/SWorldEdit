@@ -16,6 +16,15 @@ public final class SmoothOperation implements Runnable {
     private static final int RADIUS=5;
     private static final double[] WEIGHTS=gaussian();
     private static final Set<Integer> SURFACE_COVER=Set.of(31,32,37,38,78,175);
+    private static final Set<String> COVER_CLASSES=Set.of("BlockFlower","BlockTallGrass","BlockDoublePlant","BlockDeadBush","BlockSnowLayer");
+    private record LeafAccess(boolean leaves,java.lang.reflect.Method persistent){}
+    private static final ClassValue<LeafAccess> LEAF_ACCESS=new ClassValue<>(){
+        @Override protected LeafAccess computeValue(Class<?> type){
+            boolean leaves=false;for(Class<?> c=type;c!=null;c=c.getSuperclass())if(c.getSimpleName().contains("Leaves")){leaves=true;break;}
+            java.lang.reflect.Method method=null;try{method=type.getMethod("isPersistent");}catch(NoSuchMethodException ignored){}
+            return new LeafAccess(leaves,method);
+        }
+    };
     private final PlayerData player;
     private final Level level;
     private final int x,y,z,width,height,terrainHeight,length,area,volume,batch,iterations,limit;
@@ -145,16 +154,15 @@ public final class SmoothOperation implements Runnable {
     private static boolean surfaceCover(Block block) {
         if(SURFACE_COVER.contains(block.getId()))return true;
         for(Class<?> c=block.getClass();c!=null;c=c.getSuperclass())
-            if(Set.of("BlockFlower","BlockTallGrass","BlockDoublePlant","BlockDeadBush","BlockSnowLayer").contains(c.getSimpleName()))return true;
+            if(COVER_CLASSES.contains(c.getSimpleName()))return true;
         return false;
     }
 
     private static boolean naturalLeaves(Block block) {
-        boolean leaves=block.getId()==18 || block.getId()==161;
-        for(Class<?> c=block.getClass();c!=null&&!leaves;c=c.getSuperclass())leaves=c.getSimpleName().contains("Leaves");
-        if(!leaves)return false;
+        LeafAccess access=LEAF_ACCESS.get(block.getClass());
+        if(!access.leaves && block.getId()!=18 && block.getId()!=161 || access.persistent==null)return false;
         // Use the running core's semantics instead of assuming a persistence metadata bit.
-        try{return Boolean.FALSE.equals(block.getClass().getMethod("isPersistent").invoke(block));}
+        try{return Boolean.FALSE.equals(access.persistent.invoke(block));}
         catch(ReflectiveOperationException e){return false;}
     }
 
@@ -174,16 +182,28 @@ public final class SmoothOperation implements Runnable {
     }
 
     public CompletableFuture<Integer> start() {
+        publish();
         try { schedule.accept(this); } catch(RuntimeException|LinkageError e) { future.completeExceptionally(e); }
         return future;
     }
 
     private Vector3 position(int index) { return new Vector3(x+index%width,y+index/area,z+index/width%length); }
 
+    private void publish(){
+        WorkProgress p=player.getWorkProgress();
+        if(read<volume)p.report("work.phase.capture",read,volume);
+        else if(analyzed<area)p.report("work.phase.analyze",analyzed,area);
+        else if(pass<iterations)p.report("work.phase.smooth",(long)pass*area*2+(vertical?area:0)+filtered,(long)iterations*area*2);
+        else if(waterSeeded<area)p.report("work.phase.water",waterSeeded,area);
+        else if(waterRead<waterWritten)p.report("work.phase.shore",waterRead,0);
+        else p.report("work.phase.plan",planned,volume);
+    }
+
     @Override public void run() {
         if(future.isDone())return;
         try {
             int budget=batch;
+            publish();
             long deadline=System.nanoTime()+tickNanos;
             while(read<volume && budget-->0 && System.nanoTime()<deadline) {
                 int index=read++, column=index%area, h=index/area;
@@ -238,6 +258,7 @@ public final class SmoothOperation implements Runnable {
                 Block detached=desired.clone();detached.setComponents(index%width,h,index/width%length);
                 changes.blocks.add(detached);
             }
+            publish();
             if(planned==volume) {
                 if(changes.blocks.isEmpty()){future.complete(0);return;}
                 ClipboardOperation.paste(player,new Position(x,y,z,level),changes,false,limit,batch,schedule)

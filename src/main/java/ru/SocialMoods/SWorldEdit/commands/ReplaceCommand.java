@@ -46,7 +46,7 @@ public class ReplaceCommand extends WECommand {
                 return;
             }
 
-            WorldUtils.replaceAsync(dat, sel.getPosOne(), sel.getPosTwo(), originalBlock, replacementBlock)
+            track(dat, WorldUtils.replaceAsync(dat, sel.getPosOne(), sel.getPosTwo(), originalBlock, replacementBlock))
                     .thenAccept(blocksReplaced -> {
                         p.sendMessage(Messages.text("text.successfully.replaced.blocks", blocksReplaced));
                     })

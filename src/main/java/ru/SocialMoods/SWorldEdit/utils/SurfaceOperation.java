@@ -74,7 +74,9 @@ public final class SurfaceOperation implements Runnable {
         if(result.isDone())return;
         try{
             int budget=batch;
-            while(column<columns && budget-->0){
+            long deadline=TickBudget.deadline("surface.tick-millis");
+            player.getWorkProgress().report("work.phase.surface",column,columns);
+            while(column<columns && budget-->0 && System.nanoTime()<deadline){
                 int x=minX+column%width,z=minZ+column/width;
                 if(!initialized){
                     initialized=true;y=maxY;

@@ -8,10 +8,6 @@ import cn.nukkit.math.Vector3;
 final class BlockSnapshots {
     private BlockSnapshots() { }
 
-    static Block relative(Level level, int x, int y, int z, Vector3 origin) {
-        return relative(level.getBlock(new Vector3(x, y, z)), x, y, z, origin);
-    }
-
     static Block relative(Block source, int x, int y, int z, Vector3 origin) {
         Block block = source.clone();
         block.setComponents(Math.subtractExact(x, origin.getFloorX()),

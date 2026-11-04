@@ -5,7 +5,7 @@ import cn.nukkit.scheduler.AsyncTask;
 public class BlockOperationTask extends AsyncTask {
     private final Runnable operation;
     private volatile boolean completed = false;
-    private volatile Exception exception = null;
+    private volatile Throwable exception = null;
 
     public BlockOperationTask(Runnable operation) {
         this.operation = operation;
@@ -15,7 +15,7 @@ public class BlockOperationTask extends AsyncTask {
     public void onRun() {
         try {
             operation.run();
-        } catch (Exception e) {
+        } catch (Exception | LinkageError e) {
             this.exception = e;
         } finally {
             synchronized (this) {

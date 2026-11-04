@@ -53,7 +53,7 @@ public class CylCommand extends WECommand {
 
             Position center = p.getPosition();
 
-            WorldUtils.cylAsync(dat, center, radius, block)
+            track(dat, WorldUtils.cylAsync(dat, center, radius, block))
                     .thenAccept(blocksChanged -> {
                         p.sendMessage(Messages.text("text.successfully.created.cylinder.with.blocks", blocksChanged));
                     })

@@ -23,7 +23,7 @@ abstract class SurfaceCommand extends WECommand {
         try{
             SurfaceOperation work=operation(player,data,args,SWorldEdit.get());
             busy.add(id);
-            work.start().whenComplete((count,error)->{
+            track(data, work.start()).whenComplete((count,error)->{
                 busy.remove(id);
                 player.sendMessage(error==null?Messages.text(kind+".success",count):Messages.text("surface.failed",error.getMessage()));
             });
