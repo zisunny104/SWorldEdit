@@ -30,4 +30,7 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    val temporary = layout.buildDirectory.dir("tmp/tests").get().asFile
+    systemProperty("java.io.tmpdir", temporary.absolutePath)
+    doFirst { temporary.mkdirs() }
 }

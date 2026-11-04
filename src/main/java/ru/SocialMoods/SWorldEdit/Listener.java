@@ -113,6 +113,8 @@ public class Listener implements cn.nukkit.event.Listener {
             ToolBindings.Mode mode = wand ? ToolBindings.Mode.SELECTION : ToolBindings.Mode.NONE;
             try {
                 PlayerData data = playerData.apply(event.getPlayer());
+         SWorldEdit plugin = SWorldEdit.get();
+         if(plugin != null && plugin.getStreamingClipboard() != null && data != null)plugin.getStreamingClipboard().cancel(data);
                 if (data != null && data.getTools() != null) mode = data.getTools().mode(event.getItem(),wand);
             } catch (RuntimeException e) { if (!wand) return; }
             if (mode == ToolBindings.Mode.NONE) return;

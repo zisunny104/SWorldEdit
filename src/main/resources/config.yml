@@ -7,6 +7,19 @@ language: en_US
 clipboard:
   max-blocks: 100000
   blocks-per-tick: 512
+  # max-blocks above remains the memory cap for schematic and other legacy editing paths.
+  streaming:
+    enabled: true
+    max-blocks: 50000000
+    page-cells: 2048
+    max-states: 8192
+    memory-bytes: 1048576
+    disk-bytes: 1073741824 # Per clipboard/history file, including framing
+    reserve-bytes: 536870912 # Keep this much free disk space
+    tick-millis: 3
+    max-jobs: 4
+    max-history: 10
+    max-stores: 128
 
 smooth:
   max-blocks: 100000

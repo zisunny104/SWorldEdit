@@ -108,12 +108,18 @@ public class WorldUtils {
                 task -> plugin.getServer().getScheduler().scheduleDelayedTask(plugin, task, 1));
     }
 
+    public static CompletableFuture<Integer> copyAsync(PlayerData owner, Position pos1, Position pos2, Vector3 center, BlocksArray copy) {
+        var engine = SWorldEdit.get().getStreamingClipboard();
+        return engine == null ? copyAsync(pos1, pos2, center, copy) : engine.copy(owner, pos1, pos2, center, copy);
+    }
+
     public static CompletableFuture<Integer> pasteAsync(PlayerData dat, Position center, BlocksArray copy) {
         return pasteAsync(dat, center, copy, false);
     }
 
     public static CompletableFuture<Integer> pasteAsync(PlayerData dat, Position center, BlocksArray copy, boolean skipAir) {
         SWorldEdit plugin = SWorldEdit.get();
+        if (copy.paged != null) return plugin.getStreamingClipboard().paste(dat, center, copy, skipAir);
         return ClipboardOperation.paste(dat, center, copy, skipAir,
                 plugin.getConfig().getInt("clipboard.max-blocks", 100000),
                 plugin.getConfig().getInt("clipboard.blocks-per-tick", 512),
@@ -371,6 +377,8 @@ public class WorldUtils {
 
     public static CompletableFuture<Integer> undoAsync(PlayerData dat, int step) {
         SWorldEdit plugin = SWorldEdit.get();
+        if (step >= 0 && step < dat.undoSteps.size() && dat.undoSteps.get(step).paged != null)
+            return plugin.getStreamingClipboard().undo(dat, step);
         return ClipboardOperation.undo(dat, step, plugin.getConfig().getInt("clipboard.blocks-per-tick", 512),
                 task -> plugin.getServer().getScheduler().scheduleDelayedTask(plugin, task, 1));
     }

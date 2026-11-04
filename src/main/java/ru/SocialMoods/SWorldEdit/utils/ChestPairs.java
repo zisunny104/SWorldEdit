@@ -28,7 +28,7 @@ final class ChestPairs {
     private static boolean chest(CompoundTag tag) {
         return tag != null && tag.getString("id").replace("minecraft:","").equalsIgnoreCase("Chest");
     }
-    private static Point peer(CompoundTag tag) {
+    static Point peer(CompoundTag tag) {
         if (!chest(tag) || !tag.contains("pairx") || !tag.contains("pairz")) return null;
         Point own=Point.of(tag);
         Point other=new Point(tag.getInt("pairx"),own.y,tag.getInt("pairz"));

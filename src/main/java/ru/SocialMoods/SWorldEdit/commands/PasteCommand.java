@@ -31,7 +31,7 @@ public class PasteCommand extends WECommand {
             }
             boolean skipAir = args.length == 1;
             BlocksArray copy = dat.copiedBlocks;
-            if (copy == null || copy.blocks.isEmpty()) {
+            if (copy == null || copy.isEmpty()) {
                 p.sendMessage(Messages.text("text.clipboard.is.empty.use.copy.first.to.copy"));
                 return;
             }

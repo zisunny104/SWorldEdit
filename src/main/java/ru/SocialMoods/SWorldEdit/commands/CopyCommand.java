@@ -29,9 +29,12 @@ public class CopyCommand extends WECommand {
 
             BlocksArray snapshot = new BlocksArray();
 
-            WorldUtils.copyAsync(sel.getPosOne(), sel.getPosTwo(), new Vector3(p.getX(), p.getY(), p.getZ()), snapshot)
+            WorldUtils.copyAsync(dat, sel.getPosOne(), sel.getPosTwo(), new Vector3(p.getX(), p.getY(), p.getZ()), snapshot)
                     .thenAccept(blocksCopied -> {
+                        BlocksArray previous = dat.copiedBlocks;
                         dat.copiedBlocks = snapshot;
+                        var engine = ru.SocialMoods.SWorldEdit.SWorldEdit.get().getStreamingClipboard();
+                        if (engine != null) engine.release(previous);
                         p.sendMessage(Messages.text("text.successfully.copied.blocks.to.clipboard", blocksCopied));
                     })
                     .exceptionally(throwable -> {

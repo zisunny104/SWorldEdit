@@ -207,5 +207,17 @@
   "smooth.invalid-budget": "smooth.max-blocks=${0} 或 smooth.blocks-per-tick=${1} 設定無效，兩者都必須大於 0。",
   "smooth.invalid-terrain": "smooth.terrain-ids 必須包含地形方塊 ID，且不能包含空氣（0）。",
   "smooth.selection-limit": "選區共有 ${0} 格，超過 smooth.max-blocks=${1}。",
-  "smooth.world-height": "選區高度必須介於 ${0}～${1}。"
+  "smooth.world-height": "選區高度必須介於 ${0}～${1}。",
+  "streaming.limit": "選區共有 ${0} 格，超過 clipboard.streaming.max-blocks=${1}。",
+  "streaming.busy": "您上一個剪貼簿工作仍在執行或排隊。",
+  "streaming.queue-full": "剪貼簿佇列或保留額度已滿；請稍後重試，或先復原較早的編輯。",
+  "streaming.queued": "剪貼簿工作已排隊，目前位於第 ${0} 個。",
+  "streaming.cancelled": "玩家、世界或插件已無法使用，剪貼簿工作已取消；已執行的編輯仍可復原。",
+  "streaming.progress": "${0}：${1} / ${2}",
+  "streaming.copy": "複製中",
+  "streaming.phase.0": "驗證及儲存復原資料",
+  "streaming.phase.1": "貼上中",
+  "streaming.phase.2": "恢復容器配對",
+  "streaming.phase.3": "更新方塊實體與連接",
+  "streaming.enabled": "串流剪貼簿已啟用：上限 ${0} 格，每 tick 預算 ${1} 毫秒；壓縮與磁碟讀寫在背景執行。"
 }
