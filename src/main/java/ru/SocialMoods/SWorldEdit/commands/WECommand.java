@@ -56,6 +56,7 @@ public abstract class WECommand extends Command {
             var tracker=SWorldEdit.get().getWorkTracker();
             if(longRunning()){
                 if(tracker!=null && tracker.busy(wePlayerData)){player.sendMessage(Messages.text("work.busy"));return false;}
+                if(tracker!=null && tracker.full()){player.sendMessage(Messages.text("work.queue-full"));return false;}
                 wePlayerData.getWorkProgress().report("work.phase.running",0,0);
             }
 

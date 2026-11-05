@@ -184,7 +184,7 @@ public final class SmoothOperation implements Runnable {
     public CompletableFuture<Integer> start() {
         publish();
         try { schedule.accept(this); } catch(RuntimeException|LinkageError e) { future.completeExceptionally(e); }
-        return future;
+        return WorldTasks.track(future);
     }
 
     private Vector3 position(int index) { return new Vector3(x+index%width,y+index/area,z+index/width%length); }

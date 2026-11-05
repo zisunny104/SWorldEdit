@@ -11,6 +11,6 @@ public final class NaturalizeCommand extends SurfaceCommand {
         if(args.length!=0)throw new IllegalArgumentException("Usage: //naturalize");
         return SurfaceOperation.naturalize(data,data.getSelection().getPosOne(),data.getSelection().getPosTwo(),
             plugin.getConfig().getInt("surface.max-blocks",100000),plugin.getConfig().getInt("surface.max-checks",1000000),
-            plugin.getConfig().getInt("surface.blocks-per-tick",512),task->plugin.getServer().getScheduler().scheduleDelayedTask(plugin,task,1));
+            plugin.getConfig().getInt("surface.blocks-per-tick",512),plugin.getWorldTasks()::schedule);
     }
 }

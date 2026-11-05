@@ -12,18 +12,24 @@ public class PlayerData {
     private final Selection selection;
     private final ru.SocialMoods.SWorldEdit.utils.ToolBindings tools = new ru.SocialMoods.SWorldEdit.utils.ToolBindings();
     private final ru.SocialMoods.SWorldEdit.utils.WorkProgress workProgress = new ru.SocialMoods.SWorldEdit.utils.WorkProgress();
+    private final ru.SocialMoods.SWorldEdit.utils.UndoHistory undoHistory;
     public BlocksArray copiedBlocks = null;
     public final ArrayList<BlocksArray> undoSteps = new ArrayList<>();
 
     public PlayerData(cn.nukkit.Player p) {
+        this(p,new ru.SocialMoods.SWorldEdit.utils.UndoHistory(10,100000,BlocksArray::close));
+    }
+
+    public PlayerData(cn.nukkit.Player p,ru.SocialMoods.SWorldEdit.utils.UndoHistory undoHistory) {
         this.player = p;
+        this.undoHistory=undoHistory;
         this.selection = new Selection();
     }
 
     public void attachPlayer(cn.nukkit.Player player) { this.player = java.util.Objects.requireNonNull(player); }
 
     public void addUndoBlocks(BlocksArray blocks) {
-        this.undoSteps.add(blocks);
+        undoHistory.add(this,blocks);
     }
 
     public boolean hasSelection() {

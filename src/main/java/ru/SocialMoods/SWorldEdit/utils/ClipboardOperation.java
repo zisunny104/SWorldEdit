@@ -38,6 +38,7 @@ public final class ClipboardOperation {
         Runnable work = new Runnable() {
             int index;
             @Override public void run() {
+                if(future.isDone())return;
                 try {
                     long deadline=TickBudget.deadline("clipboard.tick-millis");
                     if(owner!=null)owner.getWorkProgress().report("work.phase.capture",index,volume);
@@ -63,7 +64,7 @@ public final class ClipboardOperation {
             }
         };
         try { schedule.accept(work); } catch (RuntimeException | LinkageError e) { BlockEntities.report("Clipboard operation failed", e); future.completeExceptionally(e); }
-        return future;
+        return WorldTasks.track(future);
     }
 
     public static CompletableFuture<Integer> paste(PlayerData player, Position center, BlocksArray clipboard,
@@ -87,11 +88,12 @@ public final class ClipboardOperation {
         java.util.Map<Integer,cn.nukkit.nbt.tag.CompoundTag> beforeTags = new java.util.HashMap<>();
         CompletableFuture<Integer> future = new CompletableFuture<>();
         Runnable work = new Runnable() {
-            int validated,prepared, index, pairIndex, refreshIndex, side, placed;
+            int validated,memoryCells,prepared, index, pairIndex, refreshIndex, side, placed;
             List<ChestPairs.Link> pairs;
             boolean registered, validationQueued;
             Previews.Bounds affected;
             @Override public void run() {
+                if(future.isDone())return;
                 try {
                     int budget = batch;
                     long deadline=TickBudget.deadline("clipboard.tick-millis");
@@ -102,6 +104,7 @@ public final class ClipboardOperation {
                     else player.getWorkProgress().report("streaming.phase.3",refreshIndex,targets.size());
                     while(validated<snapshot.size() && budget-->0 && System.nanoTime()<deadline){
                         Block block=snapshot.get(validated++);
+                        if(!skipAir || block.getId()!=0)memoryCells++;
                         int x=Math.toIntExact((long)originX+block.getFloorX());
                         int y=Math.toIntExact((long)originY+block.getFloorY());
                         int z=Math.toIntExact((long)originZ+block.getFloorZ());
@@ -109,6 +112,7 @@ public final class ClipboardOperation {
                         targets.add(new Vector3(x,y,z));
                     }
                     if(validated<snapshot.size()){schedule.accept(this);return;}
+                    if(recordUndo)player.getUndoHistory().checkMemoryRecord(memoryCells);
                     if(pairs==null)pairs=ChestPairs.plan(tags,targets::get,recordUndo?java.util.Map.of():clipboard.externalChestPairs);
                     // Snapshot every destination before unpairing either half of any existing chest.
                     while (prepared < snapshot.size() && budget-- > 0 && System.nanoTime()<deadline) {
@@ -158,7 +162,8 @@ public final class ClipboardOperation {
             }
         };
         try { schedule.accept(work); } catch (RuntimeException | LinkageError e) { BlockEntities.report("Clipboard operation failed", e); future.completeExceptionally(e); }
-        return future;
+        future.whenComplete((count,error)->player.getUndoHistory().completed(player));
+        return WorldTasks.track(future);
     }
 
     public static CompletableFuture<Integer> undo(PlayerData player, int step, int batch, Consumer<Runnable> schedule) {

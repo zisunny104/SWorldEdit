@@ -12,25 +12,34 @@ public final class WorkTracker implements AutoCloseable {
     private final BiConsumer<PlayerData,String> send;
     private final LongSupplier clock;
     private final long interval;
+    private final int maxJobs;
     private final Map<PlayerData,Tracked<?>> active = new IdentityHashMap<>();
     private final Queue<Runnable> completed = new ConcurrentLinkedQueue<>();
     private volatile boolean closed;
     private boolean ticking;
 
     public WorkTracker(Consumer<Runnable> schedule,BiConsumer<PlayerData,String> send,int seconds,LongSupplier clock) {
+        this(schedule,send,seconds,4,clock);
+    }
+    public WorkTracker(Consumer<Runnable> schedule,BiConsumer<PlayerData,String> send,int seconds,int maxJobs,LongSupplier clock) {
         if(seconds<1)throw new IllegalArgumentException("progress.interval-seconds must be positive");
+        if(maxJobs<1)throw new IllegalArgumentException("editing.max-jobs must be positive");
+        this.maxJobs=maxJobs;
         this.schedule=schedule;this.send=send;this.clock=clock;interval=TimeUnit.SECONDS.toNanos(seconds);
     }
     public boolean busy(PlayerData owner){return active.containsKey(owner);}
+    public boolean full(){return active.size()>=maxJobs;}
 
     public <T> CompletableFuture<T> watch(PlayerData owner,String command,CompletableFuture<T> work){
         if(closed)return CompletableFuture.failedFuture(new CancellationException("Work tracker closed"));
         if(busy(owner))return CompletableFuture.failedFuture(new IllegalStateException(Messages.text("work.busy")));
+        if(full())return CompletableFuture.failedFuture(new IllegalStateException(Messages.text("work.queue-full")));
         Tracked<T> tracked=new Tracked<>(owner,command,clock.getAsLong());active.put(owner,tracked);
         notify(owner,Messages.text("work.started",command));
         work.whenComplete((value,error)->{
             if(!closed)completed.add(()->{
                 if(active.remove(owner,tracked)){
+                    owner.getUndoHistory().completed(owner);
                     if(error==null)tracked.result.complete(value);
                     else tracked.result.completeExceptionally(error);
                 }

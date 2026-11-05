@@ -77,7 +77,7 @@ public class StackCommand extends WECommand {
                 data.getSelection().getPosTwo(), count, direction[0], direction[1], direction[2],
                 plugin.getConfig().getInt("stack.max-blocks", 100000),
                 plugin.getConfig().getInt("stack.blocks-per-tick", 512), parsed.skipAir(),
-                task -> plugin.getServer().getScheduler().scheduleDelayedTask(plugin, task, 1));
+                plugin.getWorldTasks()::schedule);
             busy.add(key);
             track(data, operation.start()).whenComplete((changed, error) -> {
                 busy.remove(key);

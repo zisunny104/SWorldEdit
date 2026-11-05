@@ -59,7 +59,7 @@ public final class SurfaceOperation implements Runnable {
 
     public CompletableFuture<Integer> start(){
         try{schedule.accept(this);}catch(RuntimeException|LinkageError e){result.completeExceptionally(e);}
-        return result;
+        return WorldTasks.track(result);
     }
 
     private static boolean ground(Block block){return block.getDamage()==0 && (block.getId()==1 || block.getId()==2 || block.getId()==3);}

@@ -136,9 +136,10 @@ is blocked, this monitor cannot send messages until that thread resumes.
 `clipboard.tick-millis`, `stack.tick-millis` and `surface.tick-millis` default to 3 and
 supplement their batch limits. Schematic block preparation and classic paste coordinate
 validation now yield between batches. Soft budgets cannot interrupt a single core call or
-the remaining classic chest-pair planning pass. The legacy set/walls/geometry/rotate paths
-still lack safe server-thread world access and detailed counters: their heartbeat identifies
-that limitation instead of displaying fabricated progress. See TODO.md for the remaining P0 work.
+the remaining classic chest-pair planning pass. Set, replace, walls, geometry and world-selection
+rotate now plan and edit in server-thread batches using the paged I/O pipeline. Rotation captures
+all non-air sources before clearing them and records destination recovery before writes, including
+overlaps. It preserves the existing position-only rotation semantics; block facing is not rotated.
 
 ### Clipboard air and connections
 Copy captures the entire selected primary block layer, including air. `//paste` includes
@@ -150,7 +151,8 @@ A single world/chunk call cannot be preempted. Once placement finishes, paste, s
 undo refresh connection-dependent blocks at the destination and its immediate boundary.
 The primary layer now includes block entity NBT; extra layers remain outside this scope.
 
-`clipboard.streaming.enabled` defaults to true for `//copy`, paged `//paste` and their
+`clipboard.streaming.enabled` defaults to true for routing `//copy` to pages. The shared paged
+engine remains enabled for set/walls/geometry/rotate, paged `//paste` and their
 `//undo` history. Compressed detached pages and disk reads run on one background worker;
 world reads/writes stay on the server thread. Only one page is in flight per active job.
 The queue defaults to 4 jobs, with one job per player; destination recovery data is fully
@@ -160,7 +162,14 @@ Repeated paste and `-a` are supported, including NBT and chest pairing across pa
 Defaults: `clipboard.streaming.max-blocks` 50,000,000; `page-cells` 2048 (max 4096);
 `memory-bytes` 1 MiB of compressed pages plus page bookkeeping before spilling;
 `disk-bytes` 1 GiB per file; `reserve-bytes` 512 MiB free disk; `max-states` 8192 native
-prototypes; `max-history` 10 per player and `max-stores` 128 retained stores overall.
+prototypes; `max-stores` 128 retained stores overall. `history.max-steps` defaults to 10 per
+player across classic and paged Undo (falls back to the old streaming `max-history` key).
+`history.max-memory-blocks` defaults to 100,000 globally retained classic blocks; active recovery
+records stay pinned until completion. A classic edit exceeding that per-record budget fails
+before writes. This counts blocks, not exact NBT bytes; admitted active jobs can temporarily
+exceed the inactive history budget. `editing.max-jobs` defaults to 4 across tracked commands.
+`editing.max-blocks` defaults to 50,000,000 planning scans; rotation also checks its combined
+source-clear and destination records. These edits share the streaming page/disk/tick budgets.
 Memory also includes bounded decoded pages and native prototypes. Unknown mutable native
 state is not silently merged by numeric ID; a palette limit aborts instead of losing state.
 These are finite resource limits, not unlimited FAWE compatibility.
@@ -168,7 +177,8 @@ These are finite resource limits, not unlimited FAWE compatibility.
 Cache files under `clipboard-cache/` are **session-only**, including disk Undo: they do not
 survive plugin reload or server restart as usable history. Startup removes abandoned owned
 session files using locks, leaves active/unknown files alone and never resumes world edits.
-Do not reload during an edit. Disabling the plugin cancels jobs and closes cache files.
+Do not reload during an edit. Disabling the plugin cancels jobs, gates queued/late world callbacks, releases retained history
+and drains cache cleanup without waiting on disk on the server thread.
 `clipboard.max-blocks` remains 100,000 for schematic/legacy in-memory editing paths;
 stack, smooth and surface also retain their separate limits. Increasing the streaming
 limit does not increase these limits. General entities and additional block layers are not copied.
@@ -222,7 +232,7 @@ Configure `bounding-boxes.selection-enabled`, `selection-seconds` (0 means until
 | 筆刷與工具 | 唯讀 tool info 已有 | brush、sphere／smooth brush、筆刷尺寸／材質／遮罩、超級鎬等 | 依賴遮罩與共用編輯流程 |
 | Schematic | 自有壓縮 NBT 格式，含整數 ID 及支援的方塊實體 | Sponge／FAWE 格式、格式選擇、列表、跨核心與 Java／Bedrock 資料轉換 | 不能把檔案副檔名當成格式相容 |
 | 生態域與世界生成 | 尚缺 | biome 查詢／編輯、regen、樹木／植被、礦脈／洞穴等 | 依賴核心版本與生成器 |
-| 主執行緒與工作控制 | 共用開始、階段、耗時及停滯提示；單玩家編輯互斥；新流程有格數／時間預算 | set、walls、geometry、rotate 仍在背景存取世界；舊歷史與執行器生命週期也待統一 | P0，需獨立改寫 |
+| 主執行緒與工作控制 | set／replace／walls／geometry／rotate 皆主執行緒分批與分頁；統一佇列、歷史保留與停用閘門 | 單次核心呼叫、傳統 NBT／配對規劃仍可能超過軟預算 | P0 已修正；保留 P1 限制 |
 | 權限與參數提示 | 共用 we.command（預設 OP）、已宣告參數與候選 | FAWE 細分權限、個人限制與管理設定介面 | 分批 |
 | 多語系 | 獨立 en_US／zh_TW、覆寫與英文備援已有 | 玩家個別語系、更多語系及核心名稱翻譯 | 部分 |
 | 快照、腳本與外部服務 | 尚缺 | snapshot／restore、CraftScript、圖片生成地形、遠端資源等 | 非目前首要範圍 |

@@ -6,6 +6,14 @@ stack:
 progress:
   interval-seconds: 5 # Heartbeat even while waiting for I/O; no invented overall percent or ETA
 
+editing:
+  max-blocks: 50000000 # Planning scans; rotation also checks clear + destination records
+  max-jobs: 4 # All tracked editing commands, including classic operations
+
+history:
+  max-steps: 10 # Per player, shared by paged and classic recovery
+  max-memory-blocks: 100000 # Global inactive classic history; active records remain pinned
+
 language: en_US
 
 clipboard:
