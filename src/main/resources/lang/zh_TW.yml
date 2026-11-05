@@ -244,5 +244,7 @@
   "work.phase.shore": "檢查岸邊連通（已走訪 ${0} 個直立柱）",
   "work.phase.prepare-tags": "準備方塊實體資料",
   "work.cancelled": "插件已停用，工作追蹤已停止。",
-  "work.phase.prepare-schematic": "準備 schematic 方塊"
+  "work.phase.prepare-schematic": "準備 schematic 方塊",
+  "editing.limit": "編輯需要掃描或修改 ${0} 筆記錄；editing.max-blocks=${1}。",
+  "work.queue-full": "編輯佇列已滿，請等待現有工作完成。"
 }

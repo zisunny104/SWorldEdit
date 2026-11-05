@@ -23,7 +23,7 @@ public final class StackOperation implements Runnable {
     private final java.util.Map<Integer, cn.nukkit.nbt.tag.CompoundTag> tags = new java.util.HashMap<>();
     private final BlocksArray undo = new BlocksArray();
     private final CompletableFuture<Integer> future = new CompletableFuture<>();
-    private int read, prepared, written, paired, refreshed, side;
+    private int read, selected, prepared, written, paired, refreshed, side;
     private final BlocksArray before = new BlocksArray();
     private List<ChestPairs.Link> pairs;
     private boolean registeredUndo;
@@ -68,8 +68,9 @@ public final class StackOperation implements Runnable {
     }
 
     public CompletableFuture<Integer> start() {
+        future.whenComplete((count,error)->player.getUndoHistory().completed(player));
         try { schedule.accept(this); } catch (RuntimeException | LinkageError e) { future.completeExceptionally(e); }
-        return future;
+        return WorldTasks.track(future);
     }
 
     @Override public void run() {
@@ -91,9 +92,11 @@ public final class StackOperation implements Runnable {
                 var tag = BlockEntities.capture(level, position, captured);
                 if (tag != null) tags.put(read, tag);
                 source.add(captured.clone());
+                if(!skipAir || captured.getId()!=0)selected++;
                 read++;
             }
             if (read == volume && pairs == null) {
+                player.getUndoHistory().checkMemoryRecord((long)selected*count);
                 pairs = ChestPairs.plan(tags, index -> new Vector3(minX + index % width,
                         minY + index / width / length, minZ + index / width % length), java.util.Map.of());
             }

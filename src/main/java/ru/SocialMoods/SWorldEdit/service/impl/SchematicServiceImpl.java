@@ -21,7 +21,7 @@ public class SchematicServiceImpl implements SchematicService {
     public SchematicServiceImpl(SchematicRepository repository) {
         this(repository, SWorldEdit.get().getConfig().getInt("clipboard.max-blocks", 100000),
                 SWorldEdit.get().getConfig().getInt("clipboard.blocks-per-tick", 512),
-                task -> SWorldEdit.get().getServer().getScheduler().scheduleDelayedTask(SWorldEdit.get(), task, 1));
+                SWorldEdit.get().getWorldTasks()::schedule);
     }
 
     public SchematicServiceImpl(SchematicRepository repository, int limit, int batch, Consumer<Runnable> schedule) {
@@ -38,21 +38,21 @@ public class SchematicServiceImpl implements SchematicService {
             Position origin = new Position(Math.min(p1.getFloorX(),p2.getFloorX()),
                     Math.min(p1.getFloorY(),p2.getFloorY()), Math.min(p1.getFloorZ(),p2.getFloorZ()), p1.level);
             BlocksArray snapshot = new BlocksArray();
-            return ClipboardOperation.copy(dat,p1,p2,origin,snapshot,limit,batch,schedule).thenCompose(count ->
+            return ru.SocialMoods.SWorldEdit.utils.WorldTasks.track(ClipboardOperation.copy(dat,p1,p2,origin,snapshot,limit,batch,schedule).thenCompose(count ->
                 CompletableFuture.runAsync(() -> {
                     dat.getWorkProgress().report("work.phase.file-write",0,0);
                     int[] ids = new int[count], data = new int[count];
                     for (int i=0;i<count;i++) { ids[i]=snapshot.blocks.get(i).getId(); data[i]=snapshot.blocks.get(i).getDamage(); }
                     try { repository.save(new Schematic((short)width,(short)height,(short)length,ids,data,snapshot.blockEntities),name); }
                     catch (Exception e) { throw new java.util.concurrent.CompletionException(e); }
-                }));
+                })));
         } catch (RuntimeException e) { return CompletableFuture.failedFuture(e); }
     }
 
     @Override public CompletableFuture<Integer> load(PlayerData dat, Position center, String name) {
         Position destination = new Position(center.getFloorX(),center.getFloorY(),center.getFloorZ(),center.level);
         dat.getWorkProgress().report("work.phase.file-read",0,0);
-        return CompletableFuture.supplyAsync(() -> {
+        return ru.SocialMoods.SWorldEdit.utils.WorldTasks.track(CompletableFuture.supplyAsync(() -> {
             try { return repository.load(name); }
             catch (Exception e) { throw new java.util.concurrent.CompletionException(e); }
         }).thenCompose(schematic -> {
@@ -62,6 +62,7 @@ public class SchematicServiceImpl implements SchematicService {
                 int index;
                 final java.util.Iterator<java.util.Map.Entry<Integer,cn.nukkit.nbt.tag.CompoundTag>> tags=schematic.getBlockEntities().entrySet().iterator();
                 @Override public void run(){
+                    if(result.isDone())return;
                     try{
                         if(batch<1 || schematic.getBlocks().length>limit)throw new IllegalArgumentException("Schematic exceeds configured limit or invalid batch size");
                         long deadline=TickBudget.deadline("clipboard.tick-millis");int budget=batch;
@@ -85,7 +86,7 @@ public class SchematicServiceImpl implements SchematicService {
                     }catch(RuntimeException|LinkageError e){result.completeExceptionally(e);}
                 }
             }); } catch(RuntimeException e) { result.completeExceptionally(e); }
-            return result;
-        });
+            return ru.SocialMoods.SWorldEdit.utils.WorldTasks.track(result);
+        }));
     }
 }

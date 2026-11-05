@@ -34,6 +34,8 @@ public final class StreamingClipboard implements AutoCloseable {
     private final CompletableFuture<ClipboardCache> cache;
     private final ArrayDeque<Job> jobs = new ArrayDeque<>();
     private final Set<PageStore> stores = Collections.newSetFromMap(new IdentityHashMap<>());
+    private final Queue<PageStore> retired = new ConcurrentLinkedQueue<>();
+    private final java.util.concurrent.atomic.AtomicBoolean retiring = new java.util.concurrent.atomic.AtomicBoolean();
     private volatile boolean closed;
     private final CompletableFuture<Void> termination = new CompletableFuture<>();
     private boolean ticking;
@@ -69,6 +71,9 @@ public final class StreamingClipboard implements AutoCloseable {
     }
 
     private CompletableFuture<Integer> paste(PlayerData owner, Position center, BlocksArray source, boolean skipAir, boolean undo) {
+        return paste(owner,center,source,skipAir,undo,false);
+    }
+    private CompletableFuture<Integer> paste(PlayerData owner, Position center, BlocksArray source, boolean skipAir, boolean undo,boolean priority) {
         if (source.paged == null) throw new IllegalArgumentException("Not a paged clipboard");
         if (center.level == null) throw new IllegalArgumentException("Invalid paste world");
         SelectionBounds b = source.paged.bounds;
@@ -76,7 +81,7 @@ public final class StreamingClipboard implements AutoCloseable {
         SelectionBounds target = new SelectionBounds(Math.addExact(b.minX(), x), Math.addExact(b.minY(), y), Math.addExact(b.minZ(), z),
                 Math.addExact(b.maxX(), x), Math.addExact(b.maxY(), y), Math.addExact(b.maxZ(), z));
         checkHeight(center.level, target);
-        return enqueue(new Paste(owner, center.level, source, x, y, z, skipAir, undo));
+        return enqueue(new Paste(owner, center.level, source, x, y, z, skipAir, undo),priority);
     }
 
     public CompletableFuture<Integer> undo(PlayerData owner, int step) {
@@ -87,22 +92,67 @@ public final class StreamingClipboard implements AutoCloseable {
         });
     }
 
+    @FunctionalInterface interface Planner { PagedClipboard.Cell cell(int index,PagedClipboard.Palette palette); }
+
+    CompletableFuture<Integer> edit(PlayerData owner,Level level,SelectionBounds bounds,long scans,int limit,Planner planner,boolean recovery){
+        validateEdit(level,bounds,scans,limit);
+        BlocksArray generated=new BlocksArray();
+        return WorldTasks.track(enqueue(new Generate(owner,level,bounds,(int)scans,planner,generated,"work.phase.plan"))
+            .thenCompose(count->count==0?CompletableFuture.completedFuture(0):paste(owner,new Position(0,0,0,level),generated,false,recovery,true))
+            .whenComplete((count,error)->release(generated)));
+    }
+
+    CompletableFuture<Integer> rotate(PlayerData owner,Level level,SelectionBounds bounds,int cx,int cz,int degrees,int limit){
+        long scans;
+        try{scans=bounds.volume().longValueExact();}catch(ArithmeticException error){throw new IllegalArgumentException(Messages.text("editing.limit",bounds.volume(),limit));}
+        validateEdit(level,bounds,scans,limit);
+        BlocksArray source=new BlocksArray(),moves=new BlocksArray();
+        Planner snapshot=(index,palette)->{
+            Vector3 point=scanPoint(bounds,index);
+            var block=level.getBlock(point);if(block.getId()==0)return null;
+            var tag=BlockEntities.capture(level,point,block);
+            return new PagedClipboard.Cell(point.getFloorX(),point.getFloorY(),point.getFloorZ(),palette.capture(block),tag,
+                    validPair(level,tag,peer->contains(bounds,peer)));
+        };
+        return WorldTasks.track(enqueue(new Generate(owner,level,bounds,(int)scans,snapshot,source,"work.phase.capture"))
+            .thenCompose(count->{
+                if(count==0)return CompletableFuture.completedFuture(0);
+                if((long)count*2>limit)throw new IllegalArgumentException(Messages.text("editing.limit",(long)count*2,limit));
+                return enqueue(new Rotation(owner,level,source,moves,cx,cz,degrees),true)
+                    .thenCompose(ignored->paste(owner,new Position(0,0,0,level),moves,false,true,true)).thenApply(ignored->count);
+            }).whenComplete((count,error)->{release(moves);release(source);}));
+    }
+
+    private void validateEdit(Level level,SelectionBounds bounds,long count,int limit){
+        if(count<1 || count>limit || count>Integer.MAX_VALUE)throw new IllegalArgumentException(Messages.text("editing.limit",count,limit));
+        if(level==null)throw new IllegalArgumentException("No edit world");checkHeight(level,bounds);
+    }
+
+    /** Preserve the legacy x/y/z traversal order, including deterministic rounded-rotation collisions. */
+    static Vector3 scanPoint(SelectionBounds bounds,int index){
+        long length=bounds.length(),height=bounds.height();
+        return new Vector3(bounds.minX()+index/length/height,bounds.minY()+index/length%height,bounds.minZ()+index%length);
+    }
+
     private void checkHeight(Level level, SelectionBounds bounds) {
         if (bounds.minY() < level.getMinBlockY() || bounds.maxY() > level.getMaxBlockY())
             throw new IllegalArgumentException(Messages.text("smooth.world-height", level.getMinBlockY(), level.getMaxBlockY()));
     }
 
     private CompletableFuture<Integer> enqueue(Job job) {
+        return enqueue(job,false);
+    }
+    private CompletableFuture<Integer> enqueue(Job job,boolean priority) {
         if (closed) throw new IllegalStateException("Clipboard service is closed");
         if (jobs.stream().anyMatch(existing -> existing.owner == job.owner)) throw new IllegalStateException(Messages.text("streaming.busy"));
-        boolean allocates = job instanceof Copy || job instanceof Paste paste && paste.recordUndo;
+        boolean allocates = job instanceof Copy || job instanceof Generate || job instanceof Rotation || job instanceof Paste paste && paste.recordUndo;
         boolean replaces = job instanceof Copy && job.owner.copiedBlocks != null && job.owner.copiedBlocks.paged != null;
         if (jobs.size() >= settings.maxJobs || allocates && !replaces && stores.size() >= settings.maxStores)
             throw new IllegalStateException(Messages.text("streaming.queue-full"));
-        jobs.add(job);
+        if(priority)jobs.addFirst(job);else jobs.add(job);
         job.progress("streaming.queued",jobs.size(),0);
         if (!ticking) { ticking = true; schedule.accept(this::tick); }
-        return job.result;
+        return WorldTasks.track(job.result);
     }
 
     private void tick() {
@@ -118,7 +168,7 @@ public final class StreamingClipboard implements AutoCloseable {
             job.publish();
             job.step(System.nanoTime() + settings.tickNanos);
         } catch (Exception | LinkageError e) { job.fail(e); }
-        if (job.result.isDone()) { jobs.remove(job); job.cleanup(); }
+        if (job.done()) { jobs.remove(job); job.cleanup();job.complete(); }
         try { schedule.accept(this::tick); }
         catch (RuntimeException e) { close(); throw e; }
     }
@@ -129,8 +179,15 @@ public final class StreamingClipboard implements AutoCloseable {
     public void release(BlocksArray clipboard) {
         if (clipboard == null || clipboard.paged == null) return;
         PageStore store = clipboard.paged.store;
-        stores.remove(store);
-        io.execute(() -> safeClose(store));
+        if(closed || !stores.remove(store))return; // Shutdown owns retained stores; avoid duplicate cleanup.
+        retired.add(store);
+        if(retiring.compareAndSet(false,true))io.execute(()->{
+            // Retiring many history entries must not overflow the bounded I/O executor queue.
+            do {
+                PageStore next;while((next=retired.poll())!=null)safeClose(next);
+                retiring.set(false);
+            } while(!retired.isEmpty() && retiring.compareAndSet(false,true));
+        });
     }
 
     private static void safeClose(AutoCloseable resource) {
@@ -141,7 +198,7 @@ public final class StreamingClipboard implements AutoCloseable {
     @Override public void close() {
         if (closed) return;
         closed = true;
-        for (Job job : jobs) { job.cancelled = true; job.fail(new CancellationException(Messages.text("streaming.cancelled"))); job.cleanup(); }
+        for (Job job : jobs) { job.cancelled = true; job.fail(new CancellationException(Messages.text("streaming.cancelled"))); job.cleanup();job.complete(); }
         jobs.clear();
         List<PageStore> retained = List.copyOf(stores);
         io.execute(() -> retained.forEach(StreamingClipboard::safeClose));
@@ -159,11 +216,13 @@ public final class StreamingClipboard implements AutoCloseable {
         final CompletableFuture<Integer> result = new CompletableFuture<>();
         CompletableFuture<?> pending;
         Consumer<Object> continuation;
-        boolean cancelled;
+        volatile boolean cancelled;
+        Integer succeeded;
+        Throwable failed;
         PageStore.Writer writer;
         PageStore.Reader reader;
 
-        Job(PlayerData owner, Level level) { this.owner = owner; this.level = level; }
+        Job(PlayerData owner, Level level) { this.owner = owner; this.level = level;result.whenComplete((value,error)->{if(result.isCancelled())cancelled=true;}); }
         abstract void step(long deadline) throws Exception;
         abstract void publish();
 
@@ -202,8 +261,12 @@ public final class StreamingClipboard implements AutoCloseable {
 
         void fail(Throwable failure) {
             if (failure instanceof CompletionException && failure.getCause() != null) failure = failure.getCause();
-            result.completeExceptionally(failure);
+            failed=failure;
         }
+
+        void succeed(int count){succeeded=count;}
+        boolean done(){return succeeded!=null || failed!=null;}
+        void complete(){owner.getUndoHistory().completed(owner);if(failed!=null)result.completeExceptionally(failed);else result.complete(succeeded);}
 
         void cleanup() {
             // A finish may have produced a store which the server thread never got to publish.
@@ -249,11 +312,90 @@ public final class StreamingClipboard implements AutoCloseable {
                 submit(writer::finish, store -> {
                     stores.add(store);
                     output.paged = new PagedClipboard(store, palette, relative, total);
-                    result.complete(total);
+                    succeed(total);
                 });
             }
         }
         @Override void publish(){progress(finishing?"work.phase.finalize":pending!=null&&!pending.isDone()?"work.phase.io":"streaming.copy",index,total);}
+    }
+
+    private final class Generate extends Job {
+        final SelectionBounds bounds;final int total;final Planner planner;final BlocksArray output;final String stage;
+        final PagedClipboard.Palette palette=new PagedClipboard.Palette(settings.maxStates);
+        final List<PagedClipboard.Cell> page=new ArrayList<>();
+        int scanned,accepted;boolean finishing;
+        Generate(PlayerData owner,Level level,SelectionBounds bounds,int total,Planner planner,BlocksArray output,String stage){
+            super(owner,level);this.bounds=bounds;this.total=total;this.planner=planner;this.output=output;this.stage=stage;writer=newWriter();
+        }
+        @Override void step(long deadline)throws Exception{
+            if(!ready() || finishing)return;
+            int budget=settings.batch;
+            while(scanned<total && budget-->0 && System.nanoTime()<deadline){
+                var cell=planner.cell(scanned++,palette);
+                if(cell!=null){page.add(cell);accepted++;}
+                if(page.size()==settings.pageCells){flush(page);return;}
+            }
+            publish();
+            if(scanned==total){
+                if(!page.isEmpty()){flush(page);return;}
+                finishing=true;
+                submit(writer::finish,store->{stores.add(store);output.paged=new PagedClipboard(store,palette,bounds,accepted);succeed(accepted);});
+            }
+        }
+        @Override void publish(){progress(finishing?"work.phase.finalize":pending!=null&&!pending.isDone()?"work.phase.io":stage,scanned,total);}
+    }
+
+    private final class Rotation extends Job {
+        final BlocksArray source,output;final int cx,cz,total,air;
+        final double sin,cos;
+        final List<PagedClipboard.Cell> buffer=new ArrayList<>();
+        List<PagedClipboard.Cell> page;int cursor,seen,pass;boolean eof,finishing;
+        SelectionBounds affected;
+        Rotation(PlayerData owner,Level level,BlocksArray source,BlocksArray output,int cx,int cz,int degrees){
+            super(owner,level);this.source=source;this.output=output;this.cx=cx;this.cz=cz;total=source.paged.count;
+            double radians=Math.toRadians(degrees);sin=Math.sin(radians);cos=Math.cos(radians);
+            air=source.paged.palette.capture(new cn.nukkit.block.BlockAir());writer=newWriter();
+        }
+        Vector3 rotated(int x,int y,int z){
+            long dx=(long)x-cx,dz=(long)z-cz;
+            return new Vector3(Math.toIntExact((long)cx+Math.round(dx*cos-dz*sin)),y,
+                    Math.toIntExact((long)cz+Math.round(dx*sin+dz*cos)));
+        }
+        @Override void step(long deadline)throws Exception{
+            if(!ready() || finishing)return;
+            if(page==null && !eof){
+                submit(()->{if(reader==null)reader=source.paged.store.reader();byte[] bytes=reader.next();return bytes==null?null:PagedClipboard.decode(bytes,settings.pageCells);},
+                        cells->{page=cells;cursor=0;eof=cells==null;});return;
+            }
+            int budget=settings.batch;
+            while(page!=null && cursor<page.size() && budget-->0 && System.nanoTime()<deadline){
+                var original=page.get(cursor++);seen++;
+                if(seen>total)throw new IOException("Rotation source record count mismatch");
+                Vector3 target=pass==0?new Vector3(original.x(),original.y(),original.z()):rotated(original.x(),original.y(),original.z());
+                CompoundTag tag=null;boolean pair=false;
+                if(pass==1 && original.tag()!=null){
+                    tag=original.tag().clone();
+                    if(original.pair()){
+                        Vector3 peer=rotated(tag.getInt("pairx"),original.y(),tag.getInt("pairz"));
+                        pair=Math.abs((long)target.getFloorX()-peer.getFloorX())+Math.abs((long)target.getFloorZ()-peer.getFloorZ())==1;
+                        tag.putInt("pairx",peer.getFloorX()).putInt("pairz",peer.getFloorZ());
+                    }
+                    tag.putInt("x",target.getFloorX()).putInt("y",target.getFloorY()).putInt("z",target.getFloorZ());
+                }
+                affected=include(affected,target);
+                buffer.add(new PagedClipboard.Cell(target.getFloorX(),target.getFloorY(),target.getFloorZ(),pass==0?air:original.state(),tag,pair));
+                if(buffer.size()==settings.pageCells){flush(buffer);return;}
+            }
+            publish();
+            if(page!=null && cursor==page.size()){page=null;return;}
+            if(!eof)return;
+            if(seen!=total)throw new IOException("Rotation source record count mismatch");
+            if(!buffer.isEmpty()){flush(buffer);return;}
+            if(pass==0){submit(()->{safeClose(reader);reader=null;return null;},ignored->{pass=1;seen=0;eof=false;});return;}
+            finishing=true;
+            submit(writer::finish,store->{stores.add(store);output.paged=new PagedClipboard(store,source.paged.palette,affected,Math.multiplyExact(total,2));succeed(total*2);});
+        }
+        @Override void publish(){progress(finishing?"work.phase.finalize":pending!=null&&!pending.isDone()?"work.phase.io":"work.phase.plan",pass*total+seen,(long)total*2>Integer.MAX_VALUE?Integer.MAX_VALUE:total*2);}
     }
 
     private final class Paste extends Job {
@@ -343,7 +485,7 @@ public final class StreamingClipboard implements AutoCloseable {
             if (seen != source.paged.count) throw new IOException("Clipboard record count does not match metadata");
             if (phase == 0) {
                 if (!before.isEmpty()) { flush(before); return; }
-                if (eligible == 0) { result.complete(0); return; }
+                if (eligible == 0) { succeed(0); return; }
                 if (recordUndo) {
                     phase = 4;
                     submit(writer::finish, store -> {
@@ -353,9 +495,11 @@ public final class StreamingClipboard implements AutoCloseable {
                 } else restart(1);
             } else if (phase < 3) restart(phase + 1);
             else {
-                if (recordUndo && attempted > 0) Previews.pasted(owner.getPlayer(), level, affected);
-                else if (!recordUndo) Previews.clearPaste(owner.getPlayer());
-                result.complete(attempted);
+                if(owner.getPlayer()!=null){
+                    if (recordUndo && attempted > 0) Previews.pasted(owner.getPlayer(), level, affected);
+                    else if (!recordUndo) Previews.clearPaste(owner.getPlayer());
+                }
+                succeed(attempted);
             }
         }
 

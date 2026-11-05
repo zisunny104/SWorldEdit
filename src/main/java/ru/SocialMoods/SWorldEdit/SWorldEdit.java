@@ -22,6 +22,9 @@ public class SWorldEdit extends PluginBase {
     @Getter private SchematicService schematicService;
     @Getter private ru.SocialMoods.SWorldEdit.utils.StreamingClipboard streamingClipboard;
     @Getter private ru.SocialMoods.SWorldEdit.utils.WorkTracker workTracker;
+    @Getter private ru.SocialMoods.SWorldEdit.utils.WorldTasks worldTasks;
+    @Getter private ru.SocialMoods.SWorldEdit.utils.UndoHistory undoHistory;
+    @Getter private ru.SocialMoods.SWorldEdit.utils.WorldEdits worldEdits;
 
     @Override
     public void onEnable() {
@@ -31,11 +34,11 @@ public class SWorldEdit extends PluginBase {
                 message -> getLogger().warning(message));
 
         try {
+            worldTasks=new ru.SocialMoods.SWorldEdit.utils.WorldTasks(task->getServer().getScheduler().scheduleDelayedTask(this,task,1));
             workTracker = new ru.SocialMoods.SWorldEdit.utils.WorkTracker(
-                task -> getServer().getScheduler().scheduleDelayedTask(this,task,1),
+                worldTasks::schedule,
                 (owner,message) -> { if(owner.getPlayer()!=null && owner.getPlayer().isOnline())owner.getPlayer().sendMessage(message); },
-                getConfig().getInt("progress.interval-seconds",5),System::nanoTime);
-            if (getConfig().getBoolean("clipboard.streaming.enabled", true)) {
+                getConfig().getInt("progress.interval-seconds",5),getConfig().getInt("editing.max-jobs",4),System::nanoTime);
                 streamingClipboard = new ru.SocialMoods.SWorldEdit.utils.StreamingClipboard(
                     new ru.SocialMoods.SWorldEdit.utils.StreamingClipboard.Settings(
                         getDataFolder().toPath().resolve("clipboard-cache"),
@@ -48,13 +51,18 @@ public class SWorldEdit extends PluginBase {
                         getConfig().getLong("clipboard.streaming.reserve-bytes", 536870912),
                         java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(getConfig().getInt("clipboard.streaming.tick-millis", 3)),
                         getConfig().getInt("clipboard.streaming.max-jobs", 4),
-                        getConfig().getInt("clipboard.streaming.max-history", 10),
+                        getConfig().getInt("history.max-steps",getConfig().getInt("clipboard.streaming.max-history",10)),
                         getConfig().getInt("clipboard.streaming.max-stores", 128)),
-                    task -> getServer().getScheduler().scheduleDelayedTask(this, task, 1),
+                    worldTasks::schedule,
                     level -> getServer().getLevel(level.getId()) == level);
+            if (getConfig().getBoolean("clipboard.streaming.enabled", true)) {
                 getLogger().info(Messages.text("streaming.enabled", getConfig().getInt("clipboard.streaming.max-blocks",50000000),
                         getConfig().getInt("clipboard.streaming.tick-millis",3)));
             }
+            undoHistory=new ru.SocialMoods.SWorldEdit.utils.UndoHistory(
+                getConfig().getInt("history.max-steps",getConfig().getInt("clipboard.streaming.max-history",10)),
+                getConfig().getLong("history.max-memory-blocks",100000),streamingClipboard::release);
+            worldEdits=new ru.SocialMoods.SWorldEdit.utils.WorldEdits(streamingClipboard,getConfig().getInt("editing.max-blocks",50000000));
             boundingBoxes = new ru.SocialMoods.SWorldEdit.preview.BoundingBoxes(this);
             this.getServer().getPluginManager().registerEvents(new Listener(), this);
 
@@ -74,9 +82,12 @@ public class SWorldEdit extends PluginBase {
     public void onDisable() {
         try {
             if (workTracker != null) workTracker.close();
+            if (worldTasks != null) worldTasks.close();
+            if (undoHistory != null) undoHistory.close();
             if (streamingClipboard != null) streamingClipboard.close();
             if (boundingBoxes != null) boundingBoxes.close();
             this.getLogger().info(Messages.text("text.sworldedit.has.been.disabled"));
+            players.clear();
         } catch (Exception e) {
             this.getLogger().error(Messages.text("text.error.disabling.sworldedit", e));
         }
@@ -104,7 +115,7 @@ public class SWorldEdit extends PluginBase {
 
         if (data == null) {
             try {
-                data = new PlayerData(player);
+                data = new PlayerData(player,undoHistory);
                 this.players.put(playerName, data);
             } catch (Exception e) {
                 this.getLogger().error(Messages.text("text.error.creating.weplayer.for", playerName, e.getMessage()));

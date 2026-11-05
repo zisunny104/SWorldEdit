@@ -11,7 +11,8 @@
 - [x] 傳統貼上座標驗證與 schematic 原生方塊準備改為分批；clipboard／stack／surface 補上預設 3 ms 的軟時間預算。單次核心呼叫及舊雙箱配對規劃仍不能中途讓出。
 - [x] 舊 AsyncTask 的 LinkageError 會正確傳回失敗，避免核心 API 不相容時卻顯示成功。
 - [x] 完整 134 項回歸通過，再補上訊息傳送失敗保護與快照方法清理的 9 項針對性測試，全部通過。已編譯到兩個 output，更新新 VPS 的 JAR、缺少的時間預算／回報設定及語系，未 reload／重啟。SHA-256：`834c194f6c475fea752b267bd787f3fad6a887e02f6ffbe39abff6a50d0a6a8c`；備份：`B:/IdeaProjects/plugin-modernization/backups/SWorldEdit-new-vps-20261105-043042`。
-- [ ] **P0 下一批**：將 `WorldUtils` 的 set／walls／geometry／rotate 舊背景世界讀寫改為主執行緒分批，並處理其執行器生命週期、重啟／停用與舊 Undo 無統一上限的記憶體風險。本次沒有把這些路徑宣稱為已修復；rotate 的選區旋轉語意須維持，不能混入剪貼簿旋轉新功能。
+- [x] **P0**：set／replace／walls／geometry／rotate 已改走主執行緒分批規劃與分頁 Undo；移除舊背景世界編輯器。旋轉維持世界選區移動語意，先擷取來源，再清除及放置，Undo 包含選區外目的地與重疊。共用歷史保留上限、全域工作數與停用閘門；不跨 reload／重啟續作。
+- [x] P0 驗證：完整 147 項回歸通過；補上大量歷史清理的 I/O 佇列保護後，串流與編輯相關測試再次通過。已編譯到兩個 output，更新新 VPS JAR、缺少的 editing／history 設定及語系，未 reload／重啟。SHA-256：`53b0b0db026dec5c8e2fc9c2fa8bd82ccc0c513dd35b4e530947c9eb929ca734`；備份：`B:/IdeaProjects/plugin-modernization/backups/SWorldEdit-new-vps-20261105-093319`。
 - [ ] **P1**：傳統 NBT 一次性複製、雙箱配對規劃與 schematic 完整檔案讀入仍有集中記憶體／時間成本，保留原有限制；後續接入串流儲存，不能直接放大上限。
 
 ## 水下平滑（2026-11-05）
@@ -43,7 +44,7 @@
 - 新主機的插件位於 `/home/ser/kastw/plugins`；舊 `kastw` SSH 別名仍指向舊主機，後續不可直接沿用。
 - 開工時新主機設定缺少 `clipboard`／`smooth` 區段；原本複製因此使用 10 萬格限制。更新需補齊設定並保留自訂值。
 - Java 使用 `-Xmx2048m`，主機約 3.4 GiB RAM，已有 swap 使用。不能只提高限制或移到背景執行緒，仍將所有方塊物件留在記憶體。
-- 舊編輯路徑仍使用 `ArrayList<Block>`；新指令路徑透過 `BlocksArray.paged` 分流，複製、貼上與 Undo 均分頁，沒有整份展開。
+- set／replace／walls／geometry／rotate、串流複製／貼上與 Undo 使用分頁；schematic／stack／smooth／surface 仍有受限的記憶體路徑，不放大其上限。
 - 使用者不需要提供座標才能繼續：目標是支援合理的大範圍建築，允許等待較久，不用 10 萬格作為固定的能力界線。
 - 磁碟功能分支為 `feature/disk-clipboard`；平滑修正獨立保存分支，再合入 `local/all-fixes` 供部署。
 

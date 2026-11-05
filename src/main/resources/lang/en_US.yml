@@ -244,5 +244,7 @@
   "work.phase.shore": "Checking shoreline connections (${0} columns visited)",
   "work.phase.prepare-tags": "Preparing block entity data",
   "work.cancelled": "Operation tracking stopped because the plugin was disabled.",
-  "work.phase.prepare-schematic": "Preparing schematic blocks"
+  "work.phase.prepare-schematic": "Preparing schematic blocks",
+  "editing.limit": "Editing requires ${0} scanned or changed records; editing.max-blocks=${1}.",
+  "work.queue-full": "The editing queue is full. Please wait for an existing job to finish."
 }

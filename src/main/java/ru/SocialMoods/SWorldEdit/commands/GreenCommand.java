@@ -33,6 +33,6 @@ public final class GreenCommand extends SurfaceCommand {
         var a=parse(args,plugin.getConfig().getDouble("surface.default-radius",10),Math.toIntExact((long)level.getMaxBlockY()-level.getMinBlockY()+1));
         return SurfaceOperation.green(data,center,a.radius(),a.height(),a.coarse(),plugin.getConfig().getInt("surface.max-radius",128),
             plugin.getConfig().getInt("surface.max-blocks",100000),plugin.getConfig().getInt("surface.max-checks",1000000),
-            plugin.getConfig().getInt("surface.blocks-per-tick",512),task->plugin.getServer().getScheduler().scheduleDelayedTask(plugin,task,1));
+            plugin.getConfig().getInt("surface.blocks-per-tick",512),plugin.getWorldTasks()::schedule);
     }
 }
