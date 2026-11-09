@@ -18,6 +18,19 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class ListenerTest {
+    @Test void leavingCancelsScheduledAndActiveWorkBeforeAReconnect() {
+        Player actor=mock(Player.class);PlayerData owner=new PlayerData(actor);
+        var ticks=new java.util.ArrayDeque<Runnable>();
+        var plugin=mock(SWorldEdit.class);
+        try(var tracker=new ru.SocialMoods.SWorldEdit.utils.WorkTracker(ticks::add,(p,message)->{},5,System::nanoTime);
+            var singleton=mockStatic(SWorldEdit.class)) {
+            singleton.when(SWorldEdit::get).thenReturn(plugin);when(plugin.getWorkTracker()).thenReturn(tracker);
+            tracker.delay(owner,"//cut",60,()->true,()->fail("Cancelled schedule executed"));
+            var quit=mock(cn.nukkit.event.player.PlayerQuitEvent.class);when(quit.getPlayer()).thenReturn(actor);
+            new Listener(p->owner).onQuit(quit);
+            assertTrue(owner.getWorkProgress().cancellationRequested());assertTrue(tracker.status(owner,false).isEmpty());
+        }
+    }
     private Player player;
     private Item wand;
     private Block block;
