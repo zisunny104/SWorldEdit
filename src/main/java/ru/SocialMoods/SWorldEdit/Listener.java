@@ -113,8 +113,6 @@ public class Listener implements cn.nukkit.event.Listener {
             ToolBindings.Mode mode = wand ? ToolBindings.Mode.SELECTION : ToolBindings.Mode.NONE;
             try {
                 PlayerData data = playerData.apply(event.getPlayer());
-         SWorldEdit plugin = SWorldEdit.get();
-         if(plugin != null && plugin.getStreamingClipboard() != null && data != null)plugin.getStreamingClipboard().cancel(data);
                 if (data != null && data.getTools() != null) mode = data.getTools().mode(event.getItem(),wand);
             } catch (RuntimeException e) { if (!wand) return; }
             if (mode == ToolBindings.Mode.NONE) return;
@@ -192,15 +190,24 @@ public class Listener implements cn.nukkit.event.Listener {
         Previews.clear(event.getPlayer());
         PlayerData data = playerData.apply(event.getPlayer());
         if(data != null && data.getTools() != null) data.getTools().clear();
+        cancelWork(event.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onTeleport(cn.nukkit.event.player.PlayerTeleportEvent event) {
-        if(event.getFrom().getLevel()!=event.getTo().getLevel()){pendingStarts.remove(event.getPlayer());Previews.clear(event.getPlayer());}
+        if(event.getFrom().getLevel()!=event.getTo().getLevel()){pendingStarts.remove(event.getPlayer());Previews.clear(event.getPlayer());cancelWork(event.getPlayer());}
     }
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onLevelChange(cn.nukkit.event.entity.EntityLevelChangeEvent event) {
-        if(event.getEntity() instanceof cn.nukkit.Player player && event.getOrigin()!=event.getTarget()){pendingStarts.remove(player);Previews.clear(player);}
+        if(event.getEntity() instanceof cn.nukkit.Player player && event.getOrigin()!=event.getTarget()){pendingStarts.remove(player);Previews.clear(player);cancelWork(player);}
+    }
+
+    private void cancelWork(cn.nukkit.Player player) {
+        PlayerData data = playerData.apply(player);
+        if (data == null) return;
+        data.getWorkProgress().requestCancellation();
+        SWorldEdit plugin = SWorldEdit.get();
+        if (plugin != null && plugin.getWorkTracker() != null) plugin.getWorkTracker().cancel(data);
     }
 
     private boolean isWandItem(Item item) {
