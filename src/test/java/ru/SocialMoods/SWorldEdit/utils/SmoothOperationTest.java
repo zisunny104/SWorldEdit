@@ -43,6 +43,14 @@ class SmoothOperationTest {
         }
     }
     SmoothOperation operation(int iterations,int batch){return new SmoothOperation(player,new Position(-1,70,-1,level),new Position(1,74,1,level),iterations,10,100, batch,Set.of(1,2,3),queue::add);}
+
+    @Test void supportsMoreThanTenIterationsWithConfiguredLimitAndCanCancelPlanning(){
+        terrain(4,1);
+        var work=new SmoothOperation(player,new Position(-1,70,-1,level),new Position(1,74,1,level),
+                20,30,100,1,Set.of(1,2,3),queue::add).start();
+        queue.remove().run();player.getWorkProgress().requestCancellation();finish();
+        assertTrue(work.isCompletedExceptionally());assertTrue(writes.isEmpty());
+    }
     void finish(){int guard=10000;while(!queue.isEmpty()){assertTrue(guard-->0);queue.remove().run();}}
     int id(int y){return world.getOrDefault("0,"+y+",0",block(0,0,y,0)).getId();}
     void waterTo(int top,int waterId){

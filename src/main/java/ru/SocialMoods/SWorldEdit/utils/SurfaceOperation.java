@@ -73,6 +73,7 @@ public final class SurfaceOperation implements Runnable {
     @Override public void run(){
         if(result.isDone())return;
         try{
+            player.getWorkProgress().checkCancellation();
             int budget=batch;
             long deadline=TickBudget.deadline("surface.tick-millis");
             player.getWorkProgress().report("work.phase.surface",column,columns);

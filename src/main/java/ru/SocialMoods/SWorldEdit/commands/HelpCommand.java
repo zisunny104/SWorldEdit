@@ -73,6 +73,7 @@ public class HelpCommand extends WECommand {
             }
             case 4: {
                 help.append(Messages.text("selection.help"));
+                help.append(Messages.text("work.help"));
                 break;
             }
         }

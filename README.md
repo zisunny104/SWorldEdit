@@ -141,6 +141,19 @@ rotate now plan and edit in server-thread batches using the paged I/O pipeline. 
 all non-air sources before clearing them and records destination recovery before writes, including
 overlaps. It preserves the existing position-only rotation semantics; block facing is not rotated.
 
+Use `//cancel` to cancel your scheduled edits and request cancellation of your current edit.
+World operations stop at a batch boundary and retain partial Undo. `//status` shows your work.
+`//queue` shows your work, or all players' work with `we.queue.others` (OP by default).
+Completion reports elapsed time alongside the command's existing result.
+
+`//schedule <seconds> <command> [arguments]` delays set, walls, replace, cut, smooth or
+naturalize, for example `//schedule 60 smooth 20`. It captures the submitted selection and
+arguments, waits while your edit or the admission queue is busy, and rechecks permission
+and world availability before execution. Leaving the game or changing worlds cancels the
+schedule. Pending schedules are session-only and cleared on plugin disable. Delay is
+1–86400 seconds, and the scheduled-job limit follows `editing.max-jobs`.
+Use `smooth.max-iterations: 30` to allow `//smooth 20`.
+
 ### Clipboard air and connections
 Copy captures the entire selected primary block layer, including air. `//paste` includes
 air; `//paste -a` skips air. A clipboard remains reusable after pasting. Copy publishes

@@ -3,6 +3,9 @@ main: ru.SocialMoods.SWorldEdit.SWorldEdit
 version: 1.1.0-SNAPSHOT
 api: 1.0.0
 permissions:
+  we.queue.others:
+    description: View all WorldEdit jobs
+    default: op
   we.command:
     description: Use SWorldEdit commands
     default: op

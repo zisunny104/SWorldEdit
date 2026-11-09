@@ -108,6 +108,26 @@ class WorldEditsTest {
         assertTrue(owner.undoSteps.isEmpty());assertEquals(3,id(0,0));
     }
 
+    @Test void cancelPartialEditStopsWritesAndPreservesUndo()throws Exception{
+        var work=edits.set(owner,at(0,70,0),at(19,70,0),new BlockStone());
+        long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(20);
+        while(writes==0){assertTrue(System.nanoTime()<deadline);ticks.remove().run();Thread.sleep(1);}
+        int before=writes;
+        owner.getWorkProgress().requestCancellation();
+        assertThrows(CompletionException.class,()->finish(work));assertEquals(before,writes);
+        owner.getWorkProgress().resetCancellation();
+        assertEquals(before,finish(engine.undo(owner,0)));
+        for(int x=0;x<20;x++)assertEquals(0,id(x,0));
+    }
+
+    @Test void queuedCancellationDoesNotWaitForTheEarlierJob() {
+        var first=edits.set(owner,at(0,70,0),at(19,70,0),new BlockStone());
+        var other=new PlayerData(mock(Player.class));
+        var second=edits.set(other,at(30,70,0),at(39,70,0),new BlockStone());
+        other.getWorkProgress().requestCancellation();ticks.remove().run();
+        assertTrue(second.isCompletedExceptionally());assertFalse(first.isDone());assertEquals(0,writes);
+    }
+
     @Test void rotationMovesSignNbtAndUndoRestoresOriginalText()throws Exception{
         Map<String,BlockEntity> tiles=new HashMap<>();
         java.util.function.Function<CompoundTag,BlockEntity> tile=tag->{

@@ -72,4 +72,42 @@ class WorkTrackerTest {
             source.complete(9);tickAt(1);assertEquals(9,observed.join());assertFalse(broken.busy(owner));
         }
     }
+
+    @Test void cancellingActiveWorkKeepsItBusyUntilTheOperationAcknowledges() {
+        var source = new CompletableFuture<Integer>();
+        var observed = tracker.watch(owner, "//smooth", source);
+        assertTrue(tracker.cancel(owner));
+        assertTrue(owner.getWorkProgress().cancellationRequested());
+        assertTrue(tracker.busy(owner));
+        source.completeExceptionally(new CancellationException("cancelled"));
+        tickAt(1);
+        assertTrue(observed.isCompletedExceptionally());
+        assertFalse(tracker.busy(owner));
+        owner.getWorkProgress().resetCancellation();
+        assertDoesNotThrow(owner.getWorkProgress()::checkCancellation);
+    }
+
+    @Test void delayedWorkWaitsForItsOwnerAndCanBeCancelledWithoutRunning() {
+        int[] executed = {0};
+        var source = new CompletableFuture<Integer>();
+        tracker.watch(owner, "//set", source);
+        tracker.delay(owner, "//smooth 20", 5, () -> true, () -> executed[0]++);
+        tickAt(5);assertEquals(0, executed[0]);
+        assertEquals(2, tracker.status(owner, false).size());
+        source.complete(1);tickAt(6);assertEquals(1, executed[0]);
+        tracker.delay(owner, "//set stone", 5, () -> true, () -> executed[0]++);
+        assertTrue(tracker.cancel(owner));tickAt(20);assertEquals(1, executed[0]);
+    }
+
+    @Test void unavailableAndClosedSchedulesNeverExecuteAndStatusIsScoped() {
+        int[] executed = {0};
+        var other = new PlayerData(mock(Player.class));
+        tracker.delay(other, "//cut", 5, () -> false, () -> executed[0]++);
+        assertTrue(tracker.status(owner, false).isEmpty());
+        assertEquals(1, tracker.status(owner, true).size());
+        tickAt(1);assertEquals(0, executed[0]);assertTrue(tracker.status(owner, true).isEmpty());
+        tracker.delay(owner, "//cut", 5, () -> true, () -> executed[0]++);
+        tracker.close();tickAt(20);assertEquals(0, executed[0]);
+        assertThrows(IllegalStateException.class, () -> tracker.delay(owner,"//cut",1,()->true,()->{}));
+    }
 }

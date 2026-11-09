@@ -40,6 +40,7 @@ public final class ClipboardOperation {
             @Override public void run() {
                 if(future.isDone())return;
                 try {
+                    if(owner!=null)owner.getWorkProgress().checkCancellation();
                     long deadline=TickBudget.deadline("clipboard.tick-millis");
                     if(owner!=null)owner.getWorkProgress().report("work.phase.capture",index,volume);
                     int end = (int)Math.min((long)volume, (long)index + batch);
@@ -95,6 +96,7 @@ public final class ClipboardOperation {
             @Override public void run() {
                 if(future.isDone())return;
                 try {
+                    player.getWorkProgress().checkCancellation();
                     int budget = batch;
                     long deadline=TickBudget.deadline("clipboard.tick-millis");
                     if(validated<snapshot.size())player.getWorkProgress().report("work.phase.validate",validated,snapshot.size());

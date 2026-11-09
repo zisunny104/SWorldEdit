@@ -18,7 +18,7 @@ class CommandRegistrationTest {
         map.register("nukkit",new cn.nukkit.command.defaults.HelpCommand("help"));
         var vanillaHelp=map.getCommand("help");
         var commands=CommandRegistry.create(mock(SchematicService.class));
-        assertEquals(29,commands.size());Set<String> labels=new HashSet<>();
+        assertEquals(33,commands.size());Set<String> labels=new HashSet<>();
         for(var command:commands) {
             assertTrue(labels.add(command.getName()));
             assertTrue(map.register("worldedit",command),command.getName());
@@ -42,7 +42,8 @@ class CommandRegistrationTest {
         var commands=CommandRegistry.create(mock(SchematicService.class));
         for(var command:commands) {
             var args=command.getCommandParameters("default");
-            for(var arg:args) assertTrue(arg.type!=CommandParamType.RAWTEXT || arg.enumData!=null,command.getName());
+            for(var arg:args) assertTrue(arg.type!=CommandParamType.RAWTEXT || arg.enumData!=null
+                    || command.getName().equals("/schedule"),command.getName());
             if(Set.of("/copy","/cut","/undo","/wand","/desel","/pos1","/pos2","/naturalize").contains(command.getName())) assertEquals(0,args.length);
             if(Set.of("/sphere","/hsphere","/cyl","/hcyl").contains(command.getName())) {
                 assertEquals(CommandParamType.STRING,args[0].type); assertEquals(CommandParamType.INT,args[1].type);
