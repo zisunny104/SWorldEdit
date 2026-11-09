@@ -246,5 +246,20 @@
   "work.cancelled": "Operation tracking stopped because the plugin was disabled.",
   "work.phase.prepare-schematic": "Preparing schematic blocks",
   "editing.limit": "Editing requires ${0} scanned or changed records; editing.max-blocks=${1}.",
-  "work.queue-full": "The editing queue is full. Please wait for an existing job to finish."
+  "work.queue-full": "The editing queue is full. Please wait for an existing job to finish.",
+  "work.description.schedule": "Delay an edit",
+  "work.description.status": "Show progress",
+  "work.description.queue": "Show queued jobs",
+  "work.scheduled": "Schedule #${0} | ${2} in ${1}s",
+  "work.finished": "${0} finished | ${1}s",
+  "work.schedule-command": "Schedule supports set, walls, replace, cut, smooth and naturalize.",
+  "work.empty": "No jobs.",
+  "work.cancel-requested": "Schedules cancelled. Active work will stop after its current batch.",
+  "work.scheduled-status": "#${0} ${1} | due in ${2}s, waits while busy",
+  "work.schedule-failed": "Schedule #${0} failed: ${1}",
+  "work.schedule-unavailable": "Schedule #${0} cancelled: player or world unavailable.",
+  "work.description.cancel": "Cancel work",
+  "work.help": "\n//cancel Cancel work and schedules\n//status Show progress\n//queue Show jobs\n//schedule <seconds> <command and arguments> Delay an edit\n",
+  "work.delay-range": "Delay must be 1-86400 seconds.",
+  "work.user-cancelled": "Cancelled. Use //undo to restore changes."
 }

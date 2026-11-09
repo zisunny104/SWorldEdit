@@ -14,6 +14,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class ClipboardOperationTest {
+    @Test void cancelledCopyKeepsThePreviousClipboardContents() {
+        BlocksArray output=new BlocksArray();Block previous=block(1,0,0,0);output.blocks.add(previous);
+        var work=ClipboardOperation.copy(player,new Position(0,70,0,level),new Position(5,70,0,level),
+                new Vector3(),output,100,1,queue::add);
+        queue.remove().run();player.getWorkProgress().requestCancellation();finish();
+        assertTrue(work.isCompletedExceptionally());assertEquals(List.of(previous),output.blocks);
+    }
     @Test void copyReadsEachSourceBlockOnce() {
         BlocksArray output = new BlocksArray();
         var result = ClipboardOperation.copy(new Position(0,70,0,level),

@@ -76,6 +76,7 @@ public final class StackOperation implements Runnable {
     @Override public void run() {
         if (future.isDone()) return;
         try {
+            player.getWorkProgress().checkCancellation();
             int budget = batchSize;
             long deadline=TickBudget.deadline("stack.tick-millis");
             if(read<volume)player.getWorkProgress().report("work.phase.capture",read,volume);

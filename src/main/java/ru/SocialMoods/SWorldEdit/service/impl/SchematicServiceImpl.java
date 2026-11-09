@@ -64,6 +64,7 @@ public class SchematicServiceImpl implements SchematicService {
                 @Override public void run(){
                     if(result.isDone())return;
                     try{
+                        dat.getWorkProgress().checkCancellation();
                         if(batch<1 || schematic.getBlocks().length>limit)throw new IllegalArgumentException("Schematic exceeds configured limit or invalid batch size");
                         long deadline=TickBudget.deadline("clipboard.tick-millis");int budget=batch;
                         dat.getWorkProgress().report("work.phase.prepare-schematic",index,schematic.getBlocks().length);

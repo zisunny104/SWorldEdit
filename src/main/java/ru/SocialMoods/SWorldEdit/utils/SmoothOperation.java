@@ -202,6 +202,7 @@ public final class SmoothOperation implements Runnable {
     @Override public void run() {
         if(future.isDone())return;
         try {
+            player.getWorkProgress().checkCancellation();
             int budget=batch;
             publish();
             long deadline=System.nanoTime()+tickNanos;

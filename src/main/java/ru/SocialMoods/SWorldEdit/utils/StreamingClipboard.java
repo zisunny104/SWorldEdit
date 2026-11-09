@@ -157,9 +157,18 @@ public final class StreamingClipboard implements AutoCloseable {
 
     private void tick() {
         if (closed) return;
+        for (Job queued : List.copyOf(jobs)) {
+            if (queued.cancelled || queued.owner.getWorkProgress().cancellationRequested()) {
+                jobs.remove(queued);
+                queued.fail(new CancellationException(Messages.text("work.user-cancelled")));
+                queued.cleanup();
+                queued.complete();
+            }
+        }
         Job job = jobs.peek();
         if (job == null) { ticking = false; return; }
         try {
+            job.owner.getWorkProgress().checkCancellation();
             if (job.cancelled || !available.test(job.level)) throw new CancellationException(Messages.text("streaming.cancelled"));
             int position=0;
             for(Job queued:jobs){if(position++>0)queued.progress("streaming.queued",position,0);}

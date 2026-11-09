@@ -41,7 +41,9 @@ public abstract class WECommand extends Command {
 
         var parameters = commandParameters.get("default");
         long required = java.util.Arrays.stream(parameters).filter(parameter -> !parameter.optional).count();
-        if (args.length < required || args.length > parameters.length) {
+        boolean rawTail = parameters.length > 0 && parameters[parameters.length - 1].type == CommandParamType.RAWTEXT
+                && parameters[parameters.length - 1].enumData == null;
+        if (args.length < required || (!rawTail && args.length > parameters.length)) {
             sender.sendMessage(Messages.text("text.command.usage", syntax()));
             return false;
         }
@@ -57,6 +59,7 @@ public abstract class WECommand extends Command {
             if(longRunning()){
                 if(tracker!=null && tracker.busy(wePlayerData)){player.sendMessage(Messages.text("work.busy"));return false;}
                 if(tracker!=null && tracker.full()){player.sendMessage(Messages.text("work.queue-full"));return false;}
+                wePlayerData.getWorkProgress().resetCancellation();
                 wePlayerData.getWorkProgress().report("work.phase.running",0,0);
             }
 
@@ -101,7 +104,7 @@ public abstract class WECommand extends Command {
 
     public abstract void execute(cn.nukkit.Player player, PlayerData wePlayerData, String[] args);
 
-    private boolean longRunning(){
+    public boolean longRunning(){
         return java.util.Set.of("/copy","/paste","/undo","/cut","/set","/replace","/walls","/rotate",
                 "/cyl","/hcyl","/sphere","/hsphere","/smooth","/stack","green","/naturalize","/schem").contains(getName());
     }

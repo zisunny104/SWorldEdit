@@ -13,7 +13,9 @@ public final class CommandRegistry {
                 new CylCommand(), new HCylCommand(), new SphereCommand(), new HSphereCommand(), new SchematicCommand(schematics),
                 new SelectionCommand(SelectionCommand.Kind.SIZE),new SelectionCommand(SelectionCommand.Kind.EXPAND),
                 new SelectionCommand(SelectionCommand.Kind.CONTRACT),new SelectionCommand(SelectionCommand.Kind.SHIFT),
-                new SelectionCommand(SelectionCommand.Kind.OUTSET),new SelectionCommand(SelectionCommand.Kind.INSET));
+                new SelectionCommand(SelectionCommand.Kind.OUTSET),new SelectionCommand(SelectionCommand.Kind.INSET),
+                new WorkCommand(WorkCommand.Mode.CANCEL),new WorkCommand(WorkCommand.Mode.STATUS),
+                new WorkCommand(WorkCommand.Mode.QUEUE),new ScheduleCommand());
         commands.forEach(command -> command.setUsage(command.syntax()));
         return commands;
     }
