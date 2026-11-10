@@ -120,11 +120,13 @@ language. Missing entries fall back to English. `${0}`, `${1}`, etc. are literal
 replacement arguments; preserve them when translating. Commands accept identifiers and
 block names supplied by the core.
 
-Block-info, set results and tool bindings send known vanilla names as client-side
+Block-info, set/replace results and tool bindings send known vanilla names as client-side
 translation keys through Bedrock raw text. Each player sees those names in their game
 language. Identifiers, numeric IDs and states stay available for commands. Custom item
 names and names without an unambiguous catalogue match retain the core's text. The bundled
-key index comes from vanilla `texts/en_US.lang`; it does not contain translated locales.
+key index comes from vanilla `texts/en_US.lang`. It loads directly from the current plugin
+JAR at startup. A load failure is logged and falls back to core names. Replace results
+include both the source and destination names alongside the original changed-block count.
 See [Bedrock raw messages](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/rawmessagejson).
 
 ### Long-running work feedback

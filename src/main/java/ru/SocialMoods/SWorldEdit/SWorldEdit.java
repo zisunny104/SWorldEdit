@@ -32,6 +32,7 @@ public class SWorldEdit extends PluginBase {
         saveDefaultConfig();
         Messages.configure(getDataFolder().toPath(), getConfig().getString("language", "en_US"),
                 message -> getLogger().warning(message));
+        ru.SocialMoods.SWorldEdit.utils.ClientNames.configure(getFile().toPath(), message -> getLogger().warning(message));
 
         try {
             worldTasks=new ru.SocialMoods.SWorldEdit.utils.WorldTasks(task->getServer().getScheduler().scheduleDelayedTask(this,task,1));
