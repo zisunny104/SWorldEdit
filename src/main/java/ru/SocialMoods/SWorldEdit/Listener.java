@@ -155,7 +155,7 @@ public class Listener implements cn.nukkit.event.Listener {
                 }
             }
             if (mode == ToolBindings.Mode.INFO) {
-                if (event.getAction() == PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK) player.sendMessage(BlockInfo.describe(block));
+                if (event.getAction() == PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK) BlockInfo.send(player, block);
                 return;
             }
             if (event.getAction() == PlayerInteractEvent.Action.LEFT_CLICK_BLOCK && !acceptStart(player, block)) {

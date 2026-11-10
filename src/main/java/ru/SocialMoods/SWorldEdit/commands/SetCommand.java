@@ -43,7 +43,8 @@ public class SetCommand extends WECommand {
 
             track(dat, WorldUtils.setAsync(dat, sel.getPosOne(), sel.getPosTwo(), block))
                     .thenAccept(blocksChanged -> {
-                        p.sendMessage(Messages.text("text.successfully.changed.blocks.to", blocksChanged, block.getName()));
+                        ru.SocialMoods.SWorldEdit.utils.ClientNames.sendBlock(p, block,
+                                name -> Messages.text("text.successfully.changed.blocks.to", blocksChanged, name));
                     })
                     .exceptionally(throwable -> {
                         p.sendMessage(Messages.text("text.error.while.setting.blocks", throwable.getMessage()));
