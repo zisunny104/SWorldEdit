@@ -18,6 +18,7 @@ public final class ToolCommand extends WECommand {
         if(item == null || item.getId()==0) { player.sendMessage(Messages.text("tool.hold-item")); return; }
         boolean info=args[0].equalsIgnoreCase("info");
         data.getTools().bind(item,info ? ToolBindings.Mode.INFO : ToolBindings.Mode.NONE);
-        player.sendMessage(Messages.text(info ? "tool.info.bound" : "tool.none",item.getName()));
+        ru.SocialMoods.SWorldEdit.utils.ClientNames.sendItem(player, item,
+                name -> Messages.text(info ? "tool.info.bound" : "tool.none", name));
     }
 }

@@ -117,8 +117,15 @@ Set `language: zh_TW` (or `en_US`) in `config.yml` and restart the plugin.
 Bundled catalogues are copied to `lang/` without overwriting existing files.
 Edit those YAML files to customize messages, or add `lang/<locale>.yml` for another
 language. Missing entries fall back to English. `${0}`, `${1}`, etc. are literal
-replacement arguments; preserve them when translating. Tool identifiers and block
-names supplied by the core are not translated by the plugin.
+replacement arguments; preserve them when translating. Commands accept identifiers and
+block names supplied by the core.
+
+Block-info, set results and tool bindings send known vanilla names as client-side
+translation keys through Bedrock raw text. Each player sees those names in their game
+language. Identifiers, numeric IDs and states stay available for commands. Custom item
+names and names without an unambiguous catalogue match retain the core's text. The bundled
+key index comes from vanilla `texts/en_US.lang`; it does not contain translated locales.
+See [Bedrock raw messages](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/rawmessagejson).
 
 ### Long-running work feedback
 Editing commands immediately acknowledge accepted work, then report the current stage,

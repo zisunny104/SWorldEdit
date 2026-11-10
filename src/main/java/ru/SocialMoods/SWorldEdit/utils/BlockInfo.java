@@ -41,12 +41,18 @@ public final class BlockInfo {
         return "data="+block.getDamage();
     }
     public static String describe(Block block) {
+        return describe(block, block.getName());
+    }
+    public static void send(cn.nukkit.Player player, Block block) {
+        ClientNames.sendBlock(player, block, name -> describe(block, name));
+    }
+    private static String describe(Block block, String displayName) {
         String identifier=identifier(block), input=input(block,identifier);
         var entity=block.getLevel().getBlockEntity(block);
         String nbt=entity==null ? Messages.text("tool.info.no-nbt") :
                 entity.namedTag==null ? entity.getClass().getSimpleName() : entity.namedTag.getString("id");
         return Messages.text("tool.info.position",block.getLevel().getName(),block.getFloorX(),block.getFloorY(),block.getFloorZ())+"\n"+
-                Messages.text("tool.info.block",block.getName(),identifier==null ? Messages.text("tool.info.unavailable") : identifier,block.getId(),block.getDamage())+"\n"+
+                Messages.text("tool.info.block",displayName,identifier==null ? Messages.text("tool.info.unavailable") : identifier,block.getId(),block.getDamage())+"\n"+
                 Messages.text("tool.info.state",states(block),block.getLightLevel())+"\n"+
                 Messages.text("tool.info.input",input==null ? Messages.text("tool.info.unavailable") : input)+"\n"+
                 Messages.text("tool.info.nbt",nbt);
