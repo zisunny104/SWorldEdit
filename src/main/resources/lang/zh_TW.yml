@@ -261,5 +261,6 @@
   "work.description.cancel": "取消工作",
   "work.help": "\n//cancel 取消工作與排程\n//status 查看進度\n//queue 查看佇列\n//schedule <秒數> <指令與參數> 延後編輯\n",
   "work.delay-range": "延後時間須為 1～86400 秒。",
-  "work.user-cancelled": "工作已取消，可用 //undo 復原。"
+  "work.user-cancelled": "工作已取消，可用 //undo 復原。",
+  "replace.names": "從 ${0} 替換為 ${1}"
 }
