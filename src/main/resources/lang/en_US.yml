@@ -261,5 +261,6 @@
   "work.description.cancel": "Cancel work",
   "work.help": "\n//cancel Cancel work and schedules\n//status Show progress\n//queue Show jobs\n//schedule <seconds> <command and arguments> Delay an edit\n",
   "work.delay-range": "Delay must be 1-86400 seconds.",
-  "work.user-cancelled": "Cancelled. Use //undo to restore changes."
+  "work.user-cancelled": "Cancelled. Use //undo to restore changes.",
+  "replace.names": "${0} to ${1}"
 }

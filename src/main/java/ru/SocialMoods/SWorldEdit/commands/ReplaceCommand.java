@@ -50,7 +50,7 @@ public class ReplaceCommand extends WECommand {
                     .thenAccept(blocksReplaced -> {
                         ru.SocialMoods.SWorldEdit.utils.ClientNames.sendBlocks(p, originalBlock, replacementBlock,
                                 (before, after) -> Messages.text("text.successfully.replaced.blocks", blocksReplaced)
-                                        + "｜" + before + " → " + after);
+                                        + "｜" + Messages.text("replace.names", before, after));
                     })
                     .exceptionally(throwable -> {
                         p.sendMessage(Messages.text("text.error.while.replacing.blocks", throwable.getMessage()));
