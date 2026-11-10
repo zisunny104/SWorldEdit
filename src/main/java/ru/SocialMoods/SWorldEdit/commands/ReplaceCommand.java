@@ -48,7 +48,9 @@ public class ReplaceCommand extends WECommand {
 
             track(dat, WorldUtils.replaceAsync(dat, sel.getPosOne(), sel.getPosTwo(), originalBlock, replacementBlock))
                     .thenAccept(blocksReplaced -> {
-                        p.sendMessage(Messages.text("text.successfully.replaced.blocks", blocksReplaced));
+                        ru.SocialMoods.SWorldEdit.utils.ClientNames.sendBlocks(p, originalBlock, replacementBlock,
+                                (before, after) -> Messages.text("text.successfully.replaced.blocks", blocksReplaced)
+                                        + "｜" + before + " → " + after);
                     })
                     .exceptionally(throwable -> {
                         p.sendMessage(Messages.text("text.error.while.replacing.blocks", throwable.getMessage()));
