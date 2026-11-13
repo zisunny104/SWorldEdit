@@ -90,7 +90,8 @@ public final class SmoothOperation implements Runnable {
         return weights;
     }
 
-    private boolean usable(int column){return tops[column]>=0 && obstructions[column]<tops[column];}
+    private final java.util.BitSet layeredColumns = new java.util.BitSet();
+    private boolean usable(int column){return !layeredColumns.get(column) && tops[column]>=0 && obstructions[column]<tops[column];}
 
     private static boolean water(Block block){return block.getId()==8 || block.getId()==9;}
 
@@ -211,6 +212,7 @@ public final class SmoothOperation implements Runnable {
                 Vector3 position=position(index);
                 Block block=level.getBlock(position).clone();blocks[index]=block;
                 boolean natural=h<terrainHeight && terrain.contains(block.getId());
+                if (BlockLayers.occupied(level, position)) layeredColumns.set(column);
                 if(level.getBlockEntity(position)!=null || (block.getId()!=0 && !natural && !surfaceCover(block) && !naturalLeaves(block) && !(underwater&&water(block))))obstructions[column]=h;
                 if(natural){
                     if(h==0 || !terrain.contains(blocks[index-area].getId()) || obstructions[column]>=h-1)bottoms[column]=h;

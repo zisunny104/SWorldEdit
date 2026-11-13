@@ -47,6 +47,61 @@ class WorldEditsTest {
     Position at(int x,int y,int z){return new Position(x,y,z,level);}
     int id(int x,int z){return world.getOrDefault(x+",70,"+z,new BlockAir()).getId();}
 
+    @Test void pagedCopyPasteAndUndoPreserveWaterMetadataAndClearDryDestinations() throws Exception {
+        Map<String, Block> extra = new HashMap<>();
+        Class<?> layerType;
+        Object waterLayer;
+        try {
+            layerType = Class.forName("cn.nukkit.block.BlockLayer");
+            waterLayer = layerType.getField("WATERLOGGED").get(null);
+        } catch (ClassNotFoundException numericApi) {
+            layerType = int.class;
+            waterLayer = 1;
+        }
+        var setter = Level.class.getMethod("setBlock", Vector3.class, layerType, Block.class, boolean.class, boolean.class);
+        var getter = Level.class.getMethod("getBlock", Vector3.class, layerType, boolean.class);
+        var readStub = doAnswer(call -> {
+            assertSame(server, Thread.currentThread());
+            return extra.getOrDefault(key(call.getArgument(0)), new BlockAir());
+        }).when(level);
+        getter.invoke(readStub, any(Vector3.class), layerType == int.class ? eq(1) : eq(waterLayer), eq(true));
+        var stub = doAnswer(call -> {
+            assertSame(server, Thread.currentThread());
+            extra.put(key(call.getArgument(0)), call.getArgument(2));
+            return true;
+        }).when(level);
+        setter.invoke(stub, any(Vector3.class), layerType == int.class ? eq(1) : eq(waterLayer),
+                any(Block.class), eq(true), eq(false));
+
+        world.put("0,70,0", new BlockSlabBlackstone());
+        world.put("1,70,0", new BlockSlabBlackstone());
+        extra.put("0,70,0", new BlockWater(3));
+        extra.put("11,70,0", new BlockWater(1));
+        BlocksArray copy = new BlocksArray();
+        assertEquals(2, finish(engine.copy(owner, at(0,70,0), at(1,70,0), new Vector3(0,70,0), copy)));
+        assertEquals(2, finish(engine.paste(owner, at(10,70,0), copy, false)));
+        assertEquals(3, extra.get("10,70,0").getDamage());
+        assertEquals(0, extra.get("11,70,0").getId());
+        assertEquals(2, finish(engine.undo(owner,0)));
+        assertEquals(0, extra.get("10,70,0").getId());
+        assertEquals(1, extra.get("11,70,0").getDamage());
+
+        BlocksArray classic = new BlocksArray();
+        assertEquals(2, finish(ClipboardOperation.copy(owner, at(0,70,0), at(1,70,0),
+                new Vector3(0,70,0), classic, 10, 2, ticks::add)));
+        assertEquals(2, finish(ClipboardOperation.paste(owner, at(10,70,0), classic, false, 10, 2, ticks::add)));
+        assertEquals(3, extra.get("10,70,0").getDamage());
+        assertEquals(0, extra.get("11,70,0").getId());
+        assertEquals(2, finish(ClipboardOperation.undo(owner, 0, 2, ticks::add)));
+        assertEquals(1, extra.get("11,70,0").getDamage());
+
+        assertEquals(2, finish(new StackOperation(owner, at(0,70,0), at(1,70,0), 1,
+                1, 0, 0, 10, 2, ticks::add).start()));
+        assertEquals(3, extra.get("2,70,0").getDamage());
+        assertEquals(2, finish(ClipboardOperation.undo(owner, 0, 2, ticks::add)));
+        assertEquals(0, extra.get("2,70,0").getId());
+    }
+
     @Test void setSnapshotsArgumentsAndUndoRestoresEveryDestination()throws Exception{
         Position first=at(0,70,0),second=at(2,70,0);world.put("1,70,0",new BlockDirt());
         var work=edits.set(owner,first,second,new BlockStone());assertEquals(0,writes);first.setComponents(100,100,100);

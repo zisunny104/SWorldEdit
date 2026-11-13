@@ -171,7 +171,11 @@ undo run in server-thread batches. `clipboard.blocks-per-tick` defaults to 512; 
 streaming pipeline also yields after `clipboard.streaming.tick-millis` (default 3 ms).
 A single world/chunk call cannot be preempted. Once placement finishes, paste, stack and
 undo refresh connection-dependent blocks at the destination and its immediate boundary.
-The primary layer now includes block entity NBT; extra layers remain outside this scope.
+Copy, paste, stack, schematic and Undo preserve the main and secondary block layers, including water
+state and metadata. A dry source clears the destination's secondary layer. `//paste -a`
+skips cells with air in both layers. World-selection rotation moves both layers. `//set`,
+`//replace`, `//cut` and shape edits place dry blocks and include the prior secondary layer
+in Undo. The primary layer includes block entity NBT.
 
 `clipboard.streaming.enabled` defaults to true for routing `//copy` to pages. The shared paged
 engine remains enabled for set/walls/geometry/rotate, paged `//paste` and their
@@ -203,7 +207,9 @@ Do not reload during an edit. Disabling the plugin cancels jobs, gates queued/la
 and drains cache cleanup without waiting on disk on the server thread.
 `clipboard.max-blocks` remains 100,000 for schematic/legacy in-memory editing paths;
 stack, smooth and surface also retain their separate limits. Increasing the streaming
-limit does not increase these limits. General entities and additional block layers are not copied.
+limit does not increase these limits. Older schematics without secondary-layer arrays are
+read as having an unknown secondary layer. General entities and storage layers beyond the
+core's two public block layers remain outside the copy format.
 
 ### Block entity NBT
 Copy/paste, stack and their undo records capture deep-cloned block entity NBT after

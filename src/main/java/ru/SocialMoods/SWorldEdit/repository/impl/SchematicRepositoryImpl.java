@@ -30,6 +30,10 @@ public class SchematicRepositoryImpl implements SchematicRepository {
                 .putShort("Length", schematic.getLength())
                 .putIntArray("BlockIds", schematic.getBlocks())
                 .putIntArray("BlockData", schematic.getData());
+        if (schematic.getSecondaryIds() != null) {
+            tag.putIntArray("SecondaryBlockIds", schematic.getSecondaryIds());
+            tag.putIntArray("SecondaryBlockData", schematic.getSecondaryData());
+        }
 
         ListTag<CompoundTag> entities = new ListTag<>("BlockEntities");
         schematic.getBlockEntities().entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry ->
@@ -61,6 +65,9 @@ public class SchematicRepositoryImpl implements SchematicRepository {
             if (tag.contains("BlockIds") != tag.contains("BlockData")) {
                 throw new IOException("Incomplete schematic block arrays");
             }
+            if (tag.contains("SecondaryBlockIds") != tag.contains("SecondaryBlockData")) {
+                throw new IOException("Incomplete schematic secondary layer arrays");
+            }
             try {
                 Map<Integer, CompoundTag> entities = new HashMap<>();
                 if (tag.contains("BlockEntities")) {
@@ -80,7 +87,9 @@ public class SchematicRepositoryImpl implements SchematicRepository {
                         (short) tag.getShort("Height"),
                         (short) tag.getShort("Length"),
                         readValues(tag, "BlockIds", "Blocks"),
-                        readValues(tag, "BlockData", "Data"), entities
+                        readValues(tag, "BlockData", "Data"), entities,
+                        tag.contains("SecondaryBlockIds") ? tag.getIntArray("SecondaryBlockIds") : null,
+                        tag.contains("SecondaryBlockData") ? tag.getIntArray("SecondaryBlockData") : null
                 );
             } catch (IllegalArgumentException | ArithmeticException e) {
                 throw new IOException("Invalid schematic", e);

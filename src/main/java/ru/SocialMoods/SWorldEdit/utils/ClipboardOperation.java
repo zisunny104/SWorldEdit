@@ -34,6 +34,7 @@ public final class ClipboardOperation {
         Vector3 anchor = new Vector3(origin.getFloorX(), origin.getFloorY(), origin.getFloorZ());
         CompletableFuture<Integer> future = new CompletableFuture<>();
         List<Block> snapshot = new ArrayList<>();
+        BlocksArray layers = new BlocksArray();
         java.util.Map<Integer, cn.nukkit.nbt.tag.CompoundTag> tags = new java.util.HashMap<>();
         Runnable work = new Runnable() {
             int index;
@@ -50,6 +51,7 @@ public final class ClipboardOperation {
                         Block source = level.getBlock(position);
                         var tag = BlockEntities.capture(level, position, source);
                         if (tag != null) tags.put(index, tag);
+                        layers.setSecondary(index, BlockLayers.read(level, position));
                         snapshot.add(BlockSnapshots.relative(source, minX + x, minY + y, minZ + z, anchor));
                         index++;
                     }
@@ -59,6 +61,7 @@ public final class ClipboardOperation {
                         output.blocks.addAll(snapshot);
                         output.blockEntities.clear();
                         output.blockEntities.putAll(tags);
+                        output.copySecondaryFrom(layers);
                         future.complete(volume);
                     }
                 } catch (RuntimeException | LinkageError e) { BlockEntities.report("Clipboard operation failed", e); future.completeExceptionally(e); }
@@ -81,6 +84,9 @@ public final class ClipboardOperation {
         Level level = center.level;
         int originX=center.getFloorX(),originY=center.getFloorY(),originZ=center.getFloorZ();
         List<Block> snapshot = List.copyOf(clipboard.blocks);
+        BlocksArray layers = new BlocksArray();
+        layers.copySecondaryFrom(clipboard);
+        BlocksArray beforeLayers = new BlocksArray();
         java.util.Map<Integer, cn.nukkit.nbt.tag.CompoundTag> tags = new java.util.HashMap<>();
         clipboard.blockEntities.forEach((index, tag) -> tags.put(index, tag.clone()));
         List<Vector3> targets = new ArrayList<>(snapshot.size());
@@ -106,7 +112,8 @@ public final class ClipboardOperation {
                     else player.getWorkProgress().report("streaming.phase.3",refreshIndex,targets.size());
                     while(validated<snapshot.size() && budget-->0 && System.nanoTime()<deadline){
                         Block block=snapshot.get(validated++);
-                        if(!skipAir || block.getId()!=0)memoryCells++;
+                        if (layers.hasSecondary(validated - 1)) BlockLayers.requireWritable(level);
+                        if(!skipAir || block.getId()!=0 || layers.hasSecondary(validated - 1))memoryCells++;
                         int x=Math.toIntExact((long)originX+block.getFloorX());
                         int y=Math.toIntExact((long)originY+block.getFloorY());
                         int z=Math.toIntExact((long)originZ+block.getFloorZ());
@@ -119,7 +126,7 @@ public final class ClipboardOperation {
                     // Snapshot every destination before unpairing either half of any existing chest.
                     while (prepared < snapshot.size() && budget-- > 0 && System.nanoTime()<deadline) {
                         int cursor = prepared++;
-                        if (skipAir && snapshot.get(cursor).getId() == 0) continue;
+                        if (skipAir && snapshot.get(cursor).getId() == 0 && !layers.hasSecondary(cursor)) continue;
                         Vector3 target = targets.get(cursor);
                         Block captured=level.getBlock(target);
                         var previous = BlockEntities.capture(level, target,captured);
@@ -128,16 +135,19 @@ public final class ClipboardOperation {
                             if (recordUndo) ChestPairs.rememberPeer(level, previous, undo.externalChestPairs);
                         }
                         before.set(cursor, captured.clone());
+                        if (recordUndo) beforeLayers.setSecondary(cursor, BlockLayers.read(level, target));
                     }
                     while (prepared == snapshot.size() && index < snapshot.size() && budget-- > 0 && System.nanoTime()<deadline) {
                         Block block = snapshot.get(index);
                         Vector3 target = targets.get(index++);
-                        if (skipAir && block.getId() == 0) continue;
+                        if (skipAir && block.getId() == 0 && !layers.hasSecondary(index - 1)) continue;
                         if (!registered && recordUndo) { player.addUndoBlocks(undo); registered = true; }
                         var previous = beforeTags.get(index - 1);
                         if (previous != null) undo.blockEntities.put(undo.blocks.size(), previous);
+                        undo.setSecondary(undo.blocks.size(), beforeLayers.secondary(index - 1));
                         undo.blocks.add(before.get(index - 1));
                         BlockEntities.place(level, target, block, tags.get(index - 1));
+                        layers.applySecondary(index - 1, level, target);
                         placed++;
                         affected = Previews.Bounds.include(affected,target);
                     }
@@ -149,7 +159,7 @@ public final class ClipboardOperation {
                     }
                     // Pair restoration and every placement precede connection refresh.
                     while (index == snapshot.size() && pairIndex == pairs.size() && refreshIndex < targets.size() && budget-- > 0 && System.nanoTime()<deadline) {
-                        if (skipAir && snapshot.get(refreshIndex).getId() == 0) { refreshIndex++; side = 0; continue; }
+                        if (skipAir && snapshot.get(refreshIndex).getId() == 0 && !layers.hasSecondary(refreshIndex)) { refreshIndex++; side = 0; continue; }
                         if (side == 0) BlockEntities.verify(level, targets.get(refreshIndex), snapshot.get(refreshIndex), tags.get(refreshIndex));
                         Connections.refresh(level, targets.get(refreshIndex), side++);
                         if (side == 7) { side = 0; refreshIndex++; }

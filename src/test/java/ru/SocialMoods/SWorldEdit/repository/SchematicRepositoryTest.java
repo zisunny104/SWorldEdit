@@ -13,6 +13,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class SchematicRepositoryTest {
     @TempDir Path dir;
+    @Test void secondaryWaterDryAndUnknownSurviveDiskRoundTrip() throws Exception {
+        var repository = new SchematicRepositoryImpl(dir.toFile());
+        repository.save(new Schematic((short)3,(short)1,(short)1,new int[]{44,44,44},new int[3],
+                java.util.Map.of(),new int[]{8,0,-1},new int[]{3,0,0}), "layers");
+        Schematic loaded = repository.load("layers");
+        assertArrayEquals(new int[]{8,0,-1}, loaded.getSecondaryIds());
+        assertArrayEquals(new int[]{3,0,0}, loaded.getSecondaryData());
+    }
     @Test void highIdsAndMetadataSurviveDiskRoundTrip() throws Exception {
         SchematicRepositoryImpl repository = new SchematicRepositoryImpl(dir.toFile());
         int[] ids = {0, 255, 256, 792, 10001};
@@ -29,6 +37,7 @@ class SchematicRepositoryTest {
         Schematic loaded = new SchematicRepositoryImpl(dir.toFile()).load("legacy");
         assertArrayEquals(new int[]{1, 255}, loaded.getBlocks());
         assertArrayEquals(new int[]{0, 128}, loaded.getData());
+        assertNull(loaded.getSecondaryIds());
     }
     @Test void malformedArraysAreRejectedBeforePlacement() throws Exception {
         write("broken", new CompoundTag().putShort("Width", 2).putShort("Height", 1)

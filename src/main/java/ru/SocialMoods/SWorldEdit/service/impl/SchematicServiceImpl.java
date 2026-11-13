@@ -42,8 +42,16 @@ public class SchematicServiceImpl implements SchematicService {
                 CompletableFuture.runAsync(() -> {
                     dat.getWorkProgress().report("work.phase.file-write",0,0);
                     int[] ids = new int[count], data = new int[count];
-                    for (int i=0;i<count;i++) { ids[i]=snapshot.blocks.get(i).getId(); data[i]=snapshot.blocks.get(i).getDamage(); }
-                    try { repository.save(new Schematic((short)width,(short)height,(short)length,ids,data,snapshot.blockEntities),name); }
+                    int[] secondaryIds = new int[count], secondaryData = new int[count];
+                    for (int i = 0; i < count; i++) {
+                        ids[i] = snapshot.blocks.get(i).getId();
+                        data[i] = snapshot.blocks.get(i).getDamage();
+                        Block secondary = snapshot.secondary(i);
+                        secondaryIds[i] = secondary == null ? -1 : secondary.getId();
+                        secondaryData[i] = secondary == null ? 0 : secondary.getDamage();
+                    }
+                    try { repository.save(new Schematic((short)width,(short)height,(short)length,ids,data,
+                            snapshot.blockEntities,secondaryIds,secondaryData),name); }
                     catch (Exception e) { throw new java.util.concurrent.CompletionException(e); }
                 })));
         } catch (RuntimeException e) { return CompletableFuture.failedFuture(e); }
@@ -75,6 +83,16 @@ public class SchematicServiceImpl implements SchematicService {
                                 throw new IllegalArgumentException("Core does not support schematic block "+id+":"+meta);
                             block.setComponents(i%schematic.getWidth(),i/schematic.getWidth()/schematic.getLength(),i/schematic.getWidth()%schematic.getLength());
                             clipboard.blocks.add(block);
+                            if (schematic.getSecondaryIds() != null && schematic.getSecondaryIds()[i] >= 0) {
+                                int secondaryId = schematic.getSecondaryIds()[i];
+                                int secondaryMeta = schematic.getSecondaryData()[i];
+                                Block secondary = Block.get(secondaryId, secondaryMeta);
+                                if (secondary.getId() != secondaryId || secondary.getDamage() != secondaryMeta ||
+                                        secondary.getClass().getSimpleName().equals("BlockUnknown")) {
+                                    throw new IllegalArgumentException("Unsupported schematic secondary block " + secondaryId + ":" + secondaryMeta);
+                                }
+                                clipboard.setSecondary(i, secondary);
+                            }
                         }
                         while(index==schematic.getBlocks().length && tags.hasNext() && budget-->0 && System.nanoTime()<deadline){
                             var entry=tags.next();clipboard.blockEntities.put(entry.getKey(),entry.getValue().clone());

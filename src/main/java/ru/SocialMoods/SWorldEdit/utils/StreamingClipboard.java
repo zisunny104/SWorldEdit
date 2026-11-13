@@ -109,10 +109,12 @@ public final class StreamingClipboard implements AutoCloseable {
         BlocksArray source=new BlocksArray(),moves=new BlocksArray();
         Planner snapshot=(index,palette)->{
             Vector3 point=scanPoint(bounds,index);
-            var block=level.getBlock(point);if(block.getId()==0)return null;
+            var block=level.getBlock(point);
+            int extra = BlockLayers.capture(level, point, palette);
+            if(block.getId()==0 && extra < 0)return null;
             var tag=BlockEntities.capture(level,point,block);
             return new PagedClipboard.Cell(point.getFloorX(),point.getFloorY(),point.getFloorZ(),palette.capture(block),tag,
-                    validPair(level,tag,peer->contains(bounds,peer)));
+                    validPair(level,tag,peer->contains(bounds,peer)), extra);
         };
         return WorldTasks.track(enqueue(new Generate(owner,level,bounds,(int)scans,snapshot,source,"work.phase.capture"))
             .thenCompose(count->{
@@ -310,7 +312,8 @@ public final class StreamingClipboard implements AutoCloseable {
                 var block = level.getBlock(point);
                 CompoundTag tag = BlockEntities.capture(level, point, block);
                 page.add(new PagedClipboard.Cell(Math.subtractExact(x, ox), Math.subtractExact(y, oy), Math.subtractExact(z, oz),
-                        palette.capture(block), tag, validPair(level, tag, peer -> contains(absolute, peer))));
+                        palette.capture(block), tag, validPair(level, tag, peer -> contains(absolute, peer)),
+                        BlockLayers.capture(level, point, palette)));
                 index++;
                 if (page.size() == settings.pageCells) { flush(page); return; }
             }
@@ -392,7 +395,8 @@ public final class StreamingClipboard implements AutoCloseable {
                     tag.putInt("x",target.getFloorX()).putInt("y",target.getFloorY()).putInt("z",target.getFloorZ());
                 }
                 affected=include(affected,target);
-                buffer.add(new PagedClipboard.Cell(target.getFloorX(),target.getFloorY(),target.getFloorZ(),pass==0?air:original.state(),tag,pair));
+                buffer.add(new PagedClipboard.Cell(target.getFloorX(),target.getFloorY(),target.getFloorZ(),
+                        pass==0?air:original.state(),tag,pair,pass==0?BlockLayers.EMPTY:original.extra()));
                 if(buffer.size()==settings.pageCells){flush(buffer);return;}
             }
             publish();
@@ -456,15 +460,19 @@ public final class StreamingClipboard implements AutoCloseable {
                 if (seen > source.paged.count) throw new IOException("Clipboard contains more records than its metadata");
                 if (seen > visible) continue;
                 int blockId = source.paged.palette.blockId(cell); // Validate state without cloning during read-only passes.
-                if (skipAir && blockId == 0) continue;
+                if (skipAir && blockId == 0 && cell.extra() < 0) continue;
                 Vector3 point = target(cell);
                 if (phase == 0) {
+                    if (cell.extra() >= 0) {
+                        BlockLayers.requireWritable(level);
+                        source.paged.palette.extra(cell);
+                    }
                     eligible++;
                     if (recordUndo) {
                         var old = level.getBlock(point);
                         CompoundTag tag = BlockEntities.capture(level, point, old);
                         before.add(new PagedClipboard.Cell(point.getFloorX(), point.getFloorY(), point.getFloorZ(), beforePalette.capture(old), tag,
-                                validPair(level, tag, peer -> true)));
+                                validPair(level, tag, peer -> true), BlockLayers.capture(level, point, beforePalette)));
                         undoBounds = include(undoBounds, point);
                         if (before.size() == settings.pageCells) { flush(before); return; }
                     }
@@ -476,6 +484,7 @@ public final class StreamingClipboard implements AutoCloseable {
                     attempted++;
                     if (recordUndo) undo.applied = attempted; // Include a cell even if its placement fails halfway.
                     BlockEntities.place(level, point, source.paged.palette.block(cell), cell.tag());
+                    if (cell.extra() != BlockLayers.UNKNOWN) BlockLayers.write(level, point, source.paged.palette.extra(cell));
                     affected = Previews.Bounds.include(affected, point);
                 } else if (phase == 2 && cell.pair()) {
                     var tag = cell.tag();

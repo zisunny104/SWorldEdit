@@ -65,6 +65,7 @@ public final class SurfaceOperation implements Runnable {
     private static boolean ground(Block block){return block.getDamage()==0 && (block.getId()==1 || block.getId()==2 || block.getId()==3);}
     private void nextColumn(){column++;initialized=false;foundGround=false;}
     private void add(Vector3 position,Block before,Block after){
+        if (BlockLayers.occupied(level, position)) return;
         if(before.getId()==after.getId() && before.getDamage()==after.getDamage())return;
         if(changes.blocks.size()>=limit)throw new IllegalArgumentException("Surface changes exceed configured block limit");
         after.setComponents(position.x-minX,position.y-minY,position.z-minZ);changes.blocks.add(after);

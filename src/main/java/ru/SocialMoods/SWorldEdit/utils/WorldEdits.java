@@ -24,7 +24,7 @@ public final class WorldEdits {
             @Override public PagedClipboard.Cell cell(int index,PagedClipboard.Palette palette){
                 Vector3 point=points.apply(index);if(!filter.test(point))return null;
                 if(state<0)state=palette.capture(pattern);
-                return new PagedClipboard.Cell(point.getFloorX(),point.getFloorY(),point.getFloorZ(),state,null,false);
+                return new PagedClipboard.Cell(point.getFloorX(),point.getFloorY(),point.getFloorZ(),state,null,false,BlockLayers.EMPTY);
             }
         },owner!=null);
     }

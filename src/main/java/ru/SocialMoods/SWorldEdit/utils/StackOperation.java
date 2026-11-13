@@ -20,6 +20,7 @@ public final class StackOperation implements Runnable {
     private final boolean skipAir;
     private int changed;
     private final List<Block> source = new ArrayList<>();
+    private final BlocksArray sourceLayers = new BlocksArray();
     private final java.util.Map<Integer, cn.nukkit.nbt.tag.CompoundTag> tags = new java.util.HashMap<>();
     private final BlocksArray undo = new BlocksArray();
     private final CompletableFuture<Integer> future = new CompletableFuture<>();
@@ -93,7 +94,9 @@ public final class StackOperation implements Runnable {
                 var tag = BlockEntities.capture(level, position, captured);
                 if (tag != null) tags.put(read, tag);
                 source.add(captured.clone());
-                if(!skipAir || captured.getId()!=0)selected++;
+                sourceLayers.setSecondary(read, BlockLayers.read(level, position));
+                if (sourceLayers.hasSecondary(read)) BlockLayers.requireWritable(level);
+                if (!skipAir || captured.getId() != 0 || sourceLayers.hasSecondary(read)) selected++;
                 read++;
             }
             if (read == volume && pairs == null) {
@@ -103,7 +106,7 @@ public final class StackOperation implements Runnable {
             }
             while (read == volume && prepared < volume * count && budget-- > 0 && System.nanoTime()<deadline) {
                 int index = prepared % volume, copy = prepared / volume + 1;
-                if (skipAir && source.get(index).getId() == 0) { before.blocks.add(null); prepared++; continue; }
+                if (skipAir && source.get(index).getId() == 0 && !sourceLayers.hasSecondary(index)) { before.blocks.add(null); prepared++; continue; }
                 Vector3 target = new Vector3(coordinate(minX,width,dx,copy,index % width),
                         coordinate(minY,height,dy,copy,index / width / length),
                         coordinate(minZ,length,dz,copy,index / width % length));
@@ -113,13 +116,14 @@ public final class StackOperation implements Runnable {
                     before.blockEntities.put(prepared,previous);
                     ChestPairs.rememberPeer(level,previous,undo.externalChestPairs);
                 }
+                before.setSecondary(prepared, BlockLayers.read(level, target));
                 before.blocks.add(captured.clone());
                 prepared++;
             }
             while (prepared == volume * count && written < volume * count && budget-- > 0 && System.nanoTime()<deadline) {
                 int index = written % volume;
                 int copy = written / volume + 1;
-                if (skipAir && source.get(index).getId() == 0) { written++; continue; }
+                if (skipAir && source.get(index).getId() == 0 && !sourceLayers.hasSecondary(index)) { written++; continue; }
                 Vector3 target = new Vector3(
                     coordinate(minX, width, dx, copy, index % width),
                     coordinate(minY, height, dy, copy, index / width / length),
@@ -130,8 +134,10 @@ public final class StackOperation implements Runnable {
                 }
                 var previous = before.blockEntities.get(written);
                 if (previous != null) undo.blockEntities.put(undo.blocks.size(), previous);
+                undo.setSecondary(undo.blocks.size(), before.secondary(written));
                 undo.blocks.add(before.blocks.get(written));
                 BlockEntities.place(level, target, source.get(index), tags.get(index));
+                sourceLayers.applySecondary(index, level, target);
                 written++; changed++;
             }
             while (written == volume * count && paired < pairs.size() * count && budget-- > 0 && System.nanoTime()<deadline) {
@@ -143,7 +149,7 @@ public final class StackOperation implements Runnable {
             while (written == volume * count && paired == pairs.size() * count && refreshed < written && budget-- > 0 && System.nanoTime()<deadline) {
                 int index = refreshed % volume;
                 int copy = refreshed / volume + 1;
-                if (skipAir && source.get(index).getId() == 0) { refreshed++; side = 0; continue; }
+                if (skipAir && source.get(index).getId() == 0 && !sourceLayers.hasSecondary(index)) { refreshed++; side = 0; continue; }
                 Vector3 target = new Vector3(
                     coordinate(minX, width, dx, copy, index % width),
                     coordinate(minY, height, dy, copy, index / width / length),

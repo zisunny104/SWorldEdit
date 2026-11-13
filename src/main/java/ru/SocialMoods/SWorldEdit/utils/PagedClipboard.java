@@ -23,7 +23,11 @@ public final class PagedClipboard implements AutoCloseable {
 
     @Override public void close() throws IOException { store.close(); }
 
-    record Cell(int x, int y, int z, int state, CompoundTag tag, boolean pair) { }
+    record Cell(int x, int y, int z, int state, CompoundTag tag, boolean pair, int extra) {
+        Cell(int x, int y, int z, int state, CompoundTag tag, boolean pair) {
+            this(x, y, z, state, tag, pair, BlockLayers.UNKNOWN);
+        }
+    }
 
     /** Do not reconstruct native state through Block.get(id, meta): some cores truncate metadata. */
     static final class Palette {
@@ -79,6 +83,12 @@ public final class PagedClipboard implements AutoCloseable {
             result.setComponents(cell.x, cell.y, cell.z);
             return result;
         }
+
+        Block extra(Cell cell) {
+            if (cell.extra == BlockLayers.EMPTY) return new cn.nukkit.block.BlockAir();
+            if (cell.extra < 0 || cell.extra >= prototypes.size()) throw new IllegalArgumentException("Invalid secondary layer state index");
+            return prototypes.get(cell.extra);
+        }
     }
 
     static byte[] encode(List<Cell> cells) throws IOException {
@@ -87,9 +97,10 @@ public final class PagedClipboard implements AutoCloseable {
             out.writeInt(cells.size());
             for (Cell cell : cells) {
                 out.writeInt(cell.x); out.writeInt(cell.y); out.writeInt(cell.z); out.writeInt(cell.state);
+                out.writeInt(cell.extra);
                 out.writeBoolean(cell.pair);
                 byte[] tag = cell.tag == null ? null : NBTIO.write(cell.tag);
-                if (tag != null && tag.length > PAGE_BYTES - 25 - raw.size()) throw new IOException("Block entity exceeds clipboard page byte budget");
+                if (tag != null && tag.length > PAGE_BYTES - 29 - raw.size()) throw new IOException("Block entity exceeds clipboard page byte budget");
                 out.writeInt(tag == null ? -1 : tag.length);
                 if (tag != null) out.write(tag);
                 if (raw.size() > PAGE_BYTES) throw new IOException("Clipboard page exceeds byte budget");
@@ -109,14 +120,16 @@ public final class PagedClipboard implements AutoCloseable {
         }
         try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(raw))) {
             int count = in.readInt();
-            if (count < 0 || count > maxCells || count > (raw.length - 4) / 21) throw new IOException("Invalid clipboard page count");
+            if (count < 0 || count > maxCells || count > (raw.length - 4) / 25) throw new IOException("Invalid clipboard page count");
             List<Cell> cells = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
                 int x = in.readInt(), y = in.readInt(), z = in.readInt(), state = in.readInt();
+                int extra = in.readInt();
+                if (extra < BlockLayers.EMPTY) throw new IOException("Invalid secondary layer state");
                 boolean pair = in.readBoolean(); int size = in.readInt();
                 if (size < -1 || size > in.available()) throw new IOException("Invalid clipboard NBT length");
                 CompoundTag tag = size == -1 ? null : NBTIO.read(new ByteArrayInputStream(in.readNBytes(size)));
-                cells.add(new Cell(x, y, z, state, tag, pair));
+                cells.add(new Cell(x, y, z, state, tag, pair, extra));
             }
             if (in.available() != 0) throw new IOException("Trailing clipboard bytes");
             return cells;
